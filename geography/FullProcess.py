@@ -23,25 +23,23 @@ import time
 import getpass
 import sys
 
-from classes.UserClass import UserClass
-from classes.LoginClass import PasswordManager, WebDriverManager, Login
-from classes.NoLinkClass import NoLinkClass
-from classes.DownloadClass import Download
+from geography.classes.UserClass import UserClass
+from geography.classes.LoginClass import PasswordManager, WebDriverManager, Login
+from geography.classes.NoLinkClass import NoLinkClass
+from geography.classes.DownloadClass import Download
 from geography.classes.conversions.status_excel_to_pdf import convert_pdf
-
-sys.path.append("..")
-
 #USER INFORMATION: User and Basin Information Setup (Set this for yourself and the current basin)
 #external_user = False
-basin_code = "tigr"
-master_user = "selena"
-download_type = "pdf"
+basin_code = "gron"
+master_user = "peter"
+download_type = "excel"
 
 currentUser = UserClass(basin_code, master_user, download_type)
 currentUser.getName()
 paths = currentUser.getPath(download_type)
 
 #Base Paths 
+base_path = paths['base_path']
 user_name = paths["user_name"]
 geography_folder = paths["geography_folder"]
 download_folder_temp = paths["download_folder_temp"]
@@ -85,7 +83,7 @@ def FullProcess():
         login._init_login()
 
     time.sleep(5)
-    nlc = NoLinkClass(driver, basin_code, download_type, currentUser)
+    nlc = NoLinkClass(driver, basin_code, download_type, base_path)
     nlc._search_process()
     time.sleep(10)
 

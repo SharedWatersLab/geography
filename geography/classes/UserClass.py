@@ -1,5 +1,6 @@
 #Example Mac Path: "/Users/dvas22/Desktop/David/www/geography/"
 #Example PC Path: "C:/Users/Melissa/Documents/EventsAutomation/geography/examples/excelHandling/excel/basinData.csv"
+import os 
 
 class UserClass:
     def __init__(self, basin_code, currentUser, download_type):
@@ -204,32 +205,27 @@ class UserClass:
             return paths
 
         else: 
-            print("user not found")
-            '''
-            #import os
-
-            if os = mac ... 
-
-                computer_name = pwd.getpwuid(os.getuid()).pw_name
-
-                base_path_prefix = f'/Users/{computer_name}/'
-                download_folder_temp = f'{computer_base_path}/Downloads'
-
-                geography_folder = f'{computer_base_path}/geography/'
-
-            else:
-
-                username = os.environ.get('USERNAME')
-
-                base_path_prefix = f"C://Users/{username}/"
-                geography_folder = base_path_prefix + "Documents/geography/"
-                download_folder_temp = base_path_prefix + "/Downloads/"
-                download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-                status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            base_path_prefix = os.path.expanduser("~")
+            geography_folder = "./"
+            download_folder_temp = base_path_prefix + "/Downloads/" # do we need this?
             
-            print(f"The current computer's name is: {username}")
+            download_folder = geography_folder + "data/status" + self.basin + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
 
-            # get user - prompt user to enter tufts username for login
-            # or maybe have them put in tufts login as master_user?
+            self.base_path = base_path_prefix
+            self.user_name = self.currentUser
+            self.geography_folder = geography_folder
+            self.download_folder_temp = download_folder_temp
+            self.download_folder = download_folder
+            self.status_file = status_file
 
-            '''
+            paths = {
+                "base_path": base_path_prefix,
+                "user_name": "pnadel01",
+                "geography_folder": geography_folder,
+                "download_folder_temp": download_folder_temp,
+                "download_folder": download_folder,
+                "status_file": status_file,
+            }
+
+            return paths

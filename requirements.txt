@@ -6,3 +6,4 @@ python-dotenv
 chromedriver_py
 openpyxl
 tqdm
+jupyter 

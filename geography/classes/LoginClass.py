@@ -28,13 +28,13 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 # and should it be in like all the classes?
 
-#from driverTest import SetupDriver
-#setup = SetupDriver()
-#setup.setup_webdriver()
-#service = setup.service
+from driverTest import SetupDriver  # noqa: E402
+# setup = SetupDriver()
+# setup.setup_webdriver()
+# service = setup.service
 
-# service = Service(ChromeDriverManager().install())
-#driver = webdriver.Chrome() # (service=service)
+#service = Service(ChromeDriverManager().install())
+# driver = webdriver.Chrome() # (service=service)
 
 
 class PasswordManager:
@@ -80,10 +80,9 @@ class WebDriverManager:
         self.driver = None
         self.options = ChromeOptions()
         self.setup_options()
-        #self.setup_service()
-        self.service = Service('/usr/local/bin/chromedriver')
-        self.driver = webdriver.Chrome(service=self.service)
+        # self.setup_service()
         
+
     def setup_options(self):
         self.options = webdriver.ChromeOptions()
         self.options.page_load_strategy = 'normal'
@@ -91,24 +90,24 @@ class WebDriverManager:
         self.options.add_argument("user-data-dir=/tmp/storedLoginInformation")       
         prefs = {'download.prompt_for_download': False}
         self.options.add_experimental_option('prefs', prefs)
-    '''
-    def setup_service(self):
-        os_type = setup.get_operating_system()
-        print(f"Detected operating system: {os_type}")
 
-        chrome_version = setup.get_chrome_version()
-        if chrome_version:
-            print(f"Detected Chrome version: {chrome_version}")
-            chromedriver_version = setup.get_matching_chromedriver_version(chrome_version)
-            if chromedriver_version:
-                print(f"Matching ChromeDriver version: {chromedriver_version}")
-                if setup.download_chromedriver(chromedriver_version, os_type):
-                    #move_chromedriver(os_type)
-                    print("downloaded")
-            else:
-                print("Failed to find a matching ChromeDriver version. Please ensure you have the latest version of Chrome installed.")
-        else:
-            print("Could not detect Chrome version. Please ensure Chrome is installed and you have the latest version.")
+    # def setup_service(self):
+    #     os_type = setup.get_operating_system()
+    #     print(f"Detected operating system: {os_type}")
+
+    #     chrome_version = setup.get_chrome_version()
+    #     if chrome_version:
+    #         print(f"Detected Chrome version: {chrome_version}")
+    #         chromedriver_version = setup.get_matching_chromedriver_version(chrome_version)
+    #         if chromedriver_version:
+    #             print(f"Matching ChromeDriver version: {chromedriver_version}")
+    #             if setup.download_chromedriver(chromedriver_version, os_type):
+    #                 #move_chromedriver(os_type)
+    #                 print("downloaded")
+    #         else:
+    #             print("Failed to find a matching ChromeDriver version. Please ensure you have the latest version of Chrome installed.")
+    #     else:
+    #         print("Could not detect Chrome version. Please ensure Chrome is installed and you have the latest version.")
         #self.service = Service(ChromeDriverManager().install())
         #self.service = Service('/usr/local/bin/chromedriver')
         '''
@@ -124,7 +123,8 @@ class WebDriverManager:
     
     def start_driver(self):
         if not self.driver:
-            self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
+            # self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
+            self.driver = webdriver.Chrome(options=self.options)
         return self.driver
 
     def stop_driver(self):

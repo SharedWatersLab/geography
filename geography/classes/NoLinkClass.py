@@ -11,18 +11,16 @@ import os
 #from classes.UserClass import UserClass
 
 class NoLinkClass:
-    def __init__(self, driver: webdriver, basin_code, download_type, base_path, timeout=20, url=None):
+    def __init__(self, driver: webdriver, basin_code, download_type, current_user, timeout=20, url=None):
         self.driver = driver
         self.url = url
         self.timeout = timeout
         self.basin_code = basin_code
         self.download_type = download_type
-        self.base_path = base_path
-        #self.geography_folder = f'{base_path}Documents/geography/'
+        self.current_user = current_user
+        self.geography_folder = f'{self.current_user.geography_folder}geography/' # f"{currentUser.base_path}/geography/geography/search_terms.xlsx"
 
-        computer_name = pwd.getpwuid(os.getuid()).pw_name # this is just for mac though...
-        base_path = f'/Users/{computer_name}'
-        tracking_sheet = pd.read_excel(f'{base_path}/Documents/geography/geography/search_terms.xlsx') 
+        tracking_sheet = pd.read_excel(f'{self.current_user.geography_folder}/geography/search_terms.xlsx')
         
         row = tracking_sheet[tracking_sheet['BCODE'] == basin_code.upper()]
         self.search_term = row['Basin_Specific_Terms'].values[0]
@@ -71,11 +69,8 @@ class NoLinkClass:
             self.driver.get(self.url)
         news_button = 'body > main > div > ln-navigation > navigation > div.global-nav.light.margin-bottom-30 > div.zones.pagewrapper.product-switcher-navigation.pagewrapper-nexis > nexissearchtabmenu > div > tabmenucomponent > div > div > ul > li:nth-child(3) > button'
         self._click_from_css(news_button) # click to search in News
-        time.sleep(2)
-        #news_advancedsearch_button = '#wbbhkkk > ul > li:nth-child(1) > button'
-        #self._click_from_css(news_advancedsearch_button) # click advanced search
-        news_advancedsearch_button = "//button[@type='button' and @data-action='guidedsearch']"
-        self._click_from_xpath(news_advancedsearch_button) # click advanced search (switched to xpath)
+        news_advancedsearch_button = '#wxbhkkk > ul > li:nth-child(1) > button'
+        self._click_from_css(news_advancedsearch_button) # click advanced search, PN: NOT WORKING FOR ME
         self.driver.execute_script("window.scrollTo(0,102)")
         print("Initializing search for " + self.basin_code)
         #print(f"Initializing search for {row['Basin_Name']})
