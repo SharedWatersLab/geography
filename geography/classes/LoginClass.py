@@ -12,6 +12,7 @@ from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.common.exceptions import ElementNotInteractableException
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 from chromedriver_py import binary_path  
 
@@ -20,6 +21,7 @@ import sys
 import pandas as pd
 import time
 import getpass
+from pathlib import Path
 
 # I don't know if I need this????
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
@@ -74,15 +76,23 @@ prefs = {'download.prompt_for_download' : False}
 options.add_experimental_option('prefs', prefs)
 '''
 
-
 class WebDriverManager:
-    def __init__(self):
+    def __init__(self, paths):
         self.driver = None
         self.options = ChromeOptions()
         self.setup_options()
-        # self.setup_service()
-        
+        self.driver_path = Path("./chromedriver") / ("chromedriver.exe" if sys.platform == "win32" else "chromedriver")
+        self.paths = paths
 
+        # if os.getcwd() != self.paths['base_path'] + "geography":
+        #     service_path = "..\chromedriver\chromedriver" if sys.platform.startswith("win") else "../chromedriver/chromedriver"
+        # else:
+        service_path = ".\chromedriver\chromedriver" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
+
+        # service_path = r".\chromedriver\chromedriver" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
+        # print(service_path)
+        self.service = Service(service_path)
+    
     def setup_options(self):
         self.options = webdriver.ChromeOptions()
         self.options.page_load_strategy = 'normal'
@@ -110,7 +120,6 @@ class WebDriverManager:
     #         print("Could not detect Chrome version. Please ensure Chrome is installed and you have the latest version.")
         #self.service = Service(ChromeDriverManager().install())
         #self.service = Service('/usr/local/bin/chromedriver')
-        '''
      
         # should these two replace line 61?
         #self.temp_foldername = "storedLoginInformation" + str(self.number)
@@ -123,8 +132,7 @@ class WebDriverManager:
     
     def start_driver(self):
         if not self.driver:
-            # self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.options)
-            self.driver = webdriver.Chrome(options=self.options)
+            self.driver = webdriver.Chrome(service=self.service, options=self.options)
         return self.driver
 
     def stop_driver(self):
@@ -170,20 +178,29 @@ class Login:
             self._click_from_css(".btn-shib > .login")
             print("Logging in user with userName " + self.user_name)
 
-        except TimeoutException:
-            print("need to go back through library login")
-            library_link = "https://tufts.primo.exlibrisgroup.com/discovery/search?query=any,contains,nexis%20uni&tab=Everything&search_scope=MyInst_and_CI&vid=01TUN_INST:01TUN&lang=en&offset=0"
-            self.driver.get(library_link)
-
-            # these next two lines get to nexis uni from Tufts library
-            available_online_css = "#alma991017244849703851availabilityLine0 > span"
-            self._click_from_css(available_online_css) #click "Available Online"
-            # then retry login process again (btn-shib login, user, pass...)
-            # but in testing, it opened in a new tab (which, yeah, it was gonna do)
-            # but the original tab continued the process just fine... 
-            # so maybe it just needs to navigate away from nexis uni?
-            self._click_from_css(".btn-shib > .login")
+        except Exception as e:
+            print("An error occurred:", e)  # Prints the specific error message
+            try: # this is a new thing that just started happening January 8 2025
+                openathens_login_css = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div > div.ORRU02D-k-j'
+                self._click_from_css(openathens_login_css)
+                print("clicking through new OpenAthens page to get to login home")
         
+            except TimeoutException:
+                print("need to go back through library login")
+                library_link = "https://tufts.primo.exlibrisgroup.com/discovery/search?query=any,contains,nexis%20uni&tab=Everything&search_scope=MyInst_and_CI&vid=01TUN_INST:01TUN&lang=en&offset=0"
+                self.driver.get(library_link)
+
+                # these next two lines get to nexis uni from Tufts library
+                available_online_css = "#alma991017244849703851availabilityLine0 > span"
+                self._click_from_css(available_online_css) #click "Available Online"
+                # then retry login process again (btn-shib login, user, pass...)
+                # but in testing, it opened in a new tab (which, yeah, it was gonna do)
+                # but the original tab continued the process just fine... 
+                # so maybe it just needs to navigate away from nexis uni?
+                self._click_from_css(".btn-shib > .login")
+        
+        time.sleep(3)
+        print("entering login information")
         self._send_keys_from_css("#username", self.user_name)
         self._send_keys_from_css("#password", self.password)
         self._click_from_css("#login > button")
@@ -285,11 +302,11 @@ class Login:
                                 print("DUO authentication completed")
                                 return True
                     '''
-                # Handle trust browser page
-                if self._is_element_present_css("#trust-browser-button"):
-                    self._click_from_css("#trust-browser-button")
-                    print("Skipped trust browser page")
-                    '''
+                # # Handle trust browser page
+                # if self._is_element_present_css("#trust-browser-button"):
+                #     self._click_from_css("#trust-browser-button")
+                #     print("Skipped trust browser page")
+'''
                     
                 # Check if we're still on the DUO page after waiting
                 if duo_page_substring not in self.driver.current_url:
@@ -324,76 +341,77 @@ class Login:
             print("login successful")
             return False
         
-'''
-        #DUO to try to automate
-        # in case we're allowed to use an IT bypass code
-        #bypass_code = 123456789 # replace with the bypass code
-        time.sleep(3)
-        try:
-            duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
-            if duo_page_substring in self.driver.current_url:
-                print('DUO push code on screen OR wait for call')
-                time.sleep(20)
-            else: pass
+# '''
+#         #DUO to try to automate
+#         # in case we're allowed to use an IT bypass code
+#         #bypass_code = 123456789 # replace with the bypass code
+#         time.sleep(3)
+#         try:
+#             duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
+#             if duo_page_substring in self.driver.current_url:
+#                 print('DUO push code on screen OR wait for call')
+#                 time.sleep(20)
+#             else: pass
         
-            if duo_page_substring in self.driver.current_url:
-                other_options_selector = "#auth-view-wrapper > div:nth-child(2) > div.row.display-flex.other-options-link.align-flex-justify-content-center.size-margin-bottom-large.size-margin-top-small"
-                self._click_from_css(other_options_selector)
-                DUO_phone_call = 'body > div > div > div.card.card--white-label.uses-white-label-border-color.display-flex.flex-direction-column > div > div.all-auth-methods.display-flex.flex-value-one > ul > li:nth-child(2) > a > span.method-select-chevron > svg'
-                self._click_from_css(DUO_phone_call)
-                print('DUO calling')
-                time.sleep(20)
-            else: 
-                self._click_from_css("#trust-browser-button")
-                print("skipped trust browser page")
+#             if duo_page_substring in self.driver.current_url:
+#                 other_options_selector = "#auth-view-wrapper > div:nth-child(2) > div.row.display-flex.other-options-link.align-flex-justify-content-center.size-margin-bottom-large.size-margin-top-small"
+#                 self._click_from_css(other_options_selector)
+#                 DUO_phone_call = 'body > div > div > div.card.card--white-label.uses-white-label-border-color.display-flex.flex-direction-column > div > div.all-auth-methods.display-flex.flex-value-one > ul > li:nth-child(2) > a > span.method-select-chevron > svg'
+#                 self._click_from_css(DUO_phone_call)
+#                 print('DUO calling')
+#                 time.sleep(20)
+#             else: 
+#                 self._click_from_css("#trust-browser-button")
+#                 print("skipped trust browser page")
 
-        #if DUO fails (sometimes won't call phone), try again
-        #if duo_page_substring in self.driver.current_url:
-            #time.sleep(2)
-            # can do other options again and find selector for code again
-            # and another time.sleep()
+#         #if DUO fails (sometimes won't call phone), try again
+#         #if duo_page_substring in self.driver.current_url:
+#             #time.sleep(2)
+#             # can do other options again and find selector for code again
+#             # and another time.sleep()
 
-        except NoSuchElementException:
-            print("duo not prompted")
-            pass
+#         except NoSuchElementException:
+#             print("duo not prompted")
+#             pass
 
-        #in case trust browser page comes up
-        time.sleep(3)
-        try:
-            if duo_page_substring in self.driver.current_url :
-                self._click_from_css("#trust-browser-button")
-                print("skipped trust browser page")
+#         #in case trust browser page comes up
+#         time.sleep(3)
+#         try:
+#             if duo_page_substring in self.driver.current_url :
+#                 self._click_from_css("#trust-browser-button")
+#                 print("skipped trust browser page")
                 
-            else:
-                pass
+#             else:
+#                 pass
 
-        except NoSuchElementException:
-            print("trust browser page not prompted")
-            pass
-            '''
+#         except NoSuchElementException:
+#             print("trust browser page not prompted")
+#             pass
+#             '''
 
 
 # plop into main
-'''
-from classes.LoginClass import WebDriverManager, Login, PasswordManager
+# '''
+# '''
+# from classes.LoginClass import WebDriverManager, Login, PasswordManager
 
-if __name__ == "__main__":  
+# if __name__ == "__main__":  
     
-    # will ask for and set password
-    pm = PasswordManager()
-    if pm.password is None:
-        password = pm.get_password()
-        print("Password set!")
-    else: pass
+#     # will ask for and set password
+#     pm = PasswordManager()
+#     if pm.password is None:
+#         password = pm.get_password()
+#         print("Password set!")
+#     else: pass
     
-    # will open chrome
-    manager = WebDriverManager()
-    driver = manager.start_driver()
-    options = manager.setup_options()
+#     # will open chrome
+#     manager = WebDriverManager()
+#     driver = manager.start_driver()
+#     options = manager.setup_options()
 
-    # will log in (tufts)
-    login = Login(user_name=user_name, password=password, driver_manager=manager, url=None)
-    login._init_login()
+#     # will log in (tufts)
+#     login = Login(user_name=user_name, password=password, driver_manager=manager, url=None)
+#     login._init_login()
 
-'''
+# '''
 

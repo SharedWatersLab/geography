@@ -5,22 +5,21 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 import time
 import pandas as pd
-import pwd
-import os
 
 #from classes.UserClass import UserClass
 
 class NoLinkClass:
-    def __init__(self, driver: webdriver, basin_code, download_type, current_user, timeout=20, url=None):
+    def __init__(self, driver: webdriver, basin_code, download_type, currentUser, timeout=20, url=None):
         self.driver = driver
         self.url = url
         self.timeout = timeout
         self.basin_code = basin_code
         self.download_type = download_type
-        self.current_user = current_user
-        self.geography_folder = f'{self.current_user.geography_folder}geography/' # f"{currentUser.base_path}/geography/geography/search_terms.xlsx"
+        #self.current_user = current_user
+        #self.geography_folder = f'{self.current_user.geography_folder}geography/' # f"{currentUser.base_path}/geography/geography/search_terms.xlsx"
+        self.geography_folder = currentUser.getPath(download_type)["geography_folder"] # assumes where nlc is called userclass has already been defined
 
-        tracking_sheet = pd.read_excel(f'{self.current_user.geography_folder}/geography/search_terms.xlsx')
+        tracking_sheet = pd.read_excel(f'{self.geography_folder}/geography/search_terms.xlsx')
         
         row = tracking_sheet[tracking_sheet['BCODE'] == basin_code.upper()]
         self.search_term = row['Basin_Specific_Terms'].values[0]
