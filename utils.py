@@ -49,6 +49,7 @@ def full_process(current_user):
         index=0,
         login=login,
         nlc=nlc,
+        download_type='pdf',
         download_folder=current_user.download_folder,
         download_folder_temp=current_user.download_folder_temp,
         status_file=current_user.status_file,
