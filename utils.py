@@ -20,7 +20,28 @@ def get_user(basin, uname, dload_type):
     paths = currentUser.getPath(download_type)
     return paths, currentUser
 
-def full_process(current_user):
+def full_process(current_user, paths):
+
+    base_path = paths['base_path']
+    user_name = paths["user_name"]
+    geography_folder = paths["geography_folder"]
+    download_folder_temp = paths["download_folder_temp"]
+    download_folder = paths["download_folder"]
+    status_file = paths["status_file"]
+
+    if os.path.exists(download_folder):
+        print(f"{current_user.basin_code}/{current_user.download_type} folder already exists")
+    else:
+        os.makedirs(download_folder, exist_ok=True) # this isn't exactly right is it? - Yes, I added exists_ok=True to avoid errors if the folder already exists
+        print(f"created folder {current_user.basin_code}/{current_user.download_type}")
+
+    generic_status_path = f"{geography_folder}data/status/pdf/new_status.csv" # this is a blank df
+    # this file will need to be in the repository until we've updated download class to not use status_file
+    if os.path.exists(status_file): # though in the future we'll want to just not call in status_file
+        pass
+    else:
+        status_file = generic_status_path # if it doesn't exist, just use the blank one...
+
     if os.path.exists(current_user.download_folder):
         print(f"{current_user.basin}/{current_user.download_type} folder already exists")
     else:
