@@ -77,12 +77,12 @@ options.add_experimental_option('prefs', prefs)
 '''
 
 class WebDriverManager:
-    def __init__(self, paths):
+    def __init__(self):
         self.driver = None
         self.options = ChromeOptions()
         self.setup_options()
         self.driver_path = Path("./chromedriver") / ("chromedriver.exe" if sys.platform == "win32" else "chromedriver")
-        self.paths = paths
+        # self.paths = paths
 
         # if os.getcwd() != self.paths['base_path'] + "geography":
         #     service_path = "..\chromedriver\chromedriver" if sys.platform.startswith("win") else "../chromedriver/chromedriver"
