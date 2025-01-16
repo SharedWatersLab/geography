@@ -57,7 +57,12 @@ class Download:
         self.download_folder_temp = download_folder_temp 
         
         #Set Basin Status CSV File 
-        self.status_data = pd.read_csv(status_file, index_col=0)
+        if os.path.exists(status_file):
+            self.status_data = pd.read_csv(status_file, index_col=0)
+        else:
+            df = pd.DataFrame()
+            df.to_csv(status_file)
+            self.status_data = pd.read_csv(status_file, index_col=0)
         #self.result_tally = 0  # initialize it at 0
     
     def _click_from_xpath(self, xpath):
