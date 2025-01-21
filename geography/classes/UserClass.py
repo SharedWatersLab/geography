@@ -209,7 +209,7 @@ class UserClass:
             geography_folder = "./"
             download_folder_temp = base_path_prefix + "/Downloads/" # do we need this?
             
-            download_folder = geography_folder + "data/status" + self.basin + download_type_path
+            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
             status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
 
             self.base_path = base_path_prefix
