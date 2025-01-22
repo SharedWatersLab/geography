@@ -11,8 +11,8 @@ import re
 start_date = '06/30/2008'
 end_date = '06/30/2024'
 
-def get_user(basin, uname, dload_type):
-    basin_code = basin
+def get_user(basin_code, uname, dload_type):
+    basin_code = basin_code
     master_user = uname
     download_type = dload_type
 
@@ -30,10 +30,10 @@ def full_process(current_user, paths):
     status_file = paths["status_file"]
 
     if os.path.exists(download_folder):
-        print(f"{current_user.basin}/{current_user.download_type} folder already exists")
+        print(f"{current_user.basin_code}/{current_user.download_type} folder already exists")
     else:
         os.makedirs(download_folder, exist_ok=True) # this isn't exactly right is it? - Yes, I added exists_ok=True to avoid errors if the folder already exists
-        print(f"created folder {current_user.basin}/{current_user.download_type}")
+        print(f"created folder {current_user.basin_code}/{current_user.download_type}")
 
     generic_status_path = f"{geography_folder}data/status/pdf/new_status.csv" # this is a blank df
     # this file will need to be in the repository until we've updated download class to not use status_file
@@ -43,10 +43,10 @@ def full_process(current_user, paths):
         status_file = generic_status_path # if it doesn't exist, just use the blank one...
 
     if os.path.exists(current_user.download_folder):
-        print(f"{current_user.basin}/{current_user.download_type} folder already exists")
+        print(f"{current_user.basin_code}/{current_user.download_type} folder already exists")
     else:
         os.makedirs(current_user.download_folder, exist_ok=True)
-        print(f"created folder {current_user.basin}/{current_user.download_type}")
+        print(f"created folder {current_user.basin_code}/{current_user.download_type}")
     
     pm = PasswordManager()
     if not pm.password:
@@ -60,12 +60,11 @@ def full_process(current_user, paths):
     login = Login(user_name=current_user.currentUser, password=password, driver_manager=manager, url=None)
     login._init_login()
 
-    nlc = NoLinkClass(driver, current_user.basin, current_user.download_type, current_user)
-    nlc._search_process()
+    nlc = NoLinkClass(driver, current_user.basin_code, current_user.download_type, current_user)
 
     download = Download(
         driver=driver,
-        basin_code=current_user.basin,
+        basin_code=current_user.basin_code,
         user_name=current_user.download_folder,
         index=0,
         login=login,
@@ -78,7 +77,7 @@ def full_process(current_user, paths):
         url=None,
         timeout=20
     )
-    # download.main(index=0, basin_code=current_user.basin)
+    # download.main(index=0, basin_code=current_user.basin_code)
     
     search = newsearch(nlc, download)
     search.search(start_date, end_date)

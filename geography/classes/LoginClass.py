@@ -174,39 +174,50 @@ class Login:
         # and then somewhere else the following ???
 
     def login_page(self):
-        try: 
-            self._click_from_css(".btn-shib > .login")
-            print("Logging in user with userName " + self.user_name)
-
-        except Exception as e:
-            print("An error occurred:", e)  # Prints the specific error message
-            try: # this is a new thing that just started happening January 8 2025
-                openathens_login_css = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div > div.ORRU02D-k-j'
-                self._click_from_css(openathens_login_css)
+        #wait = WebDriverWait(self.driver, 5)
+        
+        TuftsLogin_selector = ".btn-shib > .login"
+        OpenAthens_selector = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div'
+        
+        try:
+            # First check which elements are present
+            openathens_elements = self.driver.find_elements(By.CSS_SELECTOR, OpenAthens_selector)
+            tufts_elements = self.driver.find_elements(By.CSS_SELECTOR, TuftsLogin_selector)
+            
+            if openathens_elements:
+                time.sleep(3)
+                self._click_from_css(OpenAthens_selector)
                 print("clicking through new OpenAthens page to get to login home")
-        
-            except TimeoutException:
-                print("need to go back through library login")
-                library_link = "https://tufts.primo.exlibrisgroup.com/discovery/search?query=any,contains,nexis%20uni&tab=Everything&search_scope=MyInst_and_CI&vid=01TUN_INST:01TUN&lang=en&offset=0"
-                self.driver.get(library_link)
-
-                # these next two lines get to nexis uni from Tufts library
-                available_online_css = "#alma991017244849703851availabilityLine0 > span"
-                self._click_from_css(available_online_css) #click "Available Online"
-                # then retry login process again (btn-shib login, user, pass...)
-                # but in testing, it opened in a new tab (which, yeah, it was gonna do)
-                # but the original tab continued the process just fine... 
-                # so maybe it just needs to navigate away from nexis uni?
-                self._click_from_css(".btn-shib > .login")
-        
-        time.sleep(3)
-        print("entering login information")
-        self._send_keys_from_css("#username", self.user_name)
-        self._send_keys_from_css("#password", self.password)
-        self._click_from_css("#login > button")
-        print("Entered Tufts username and password")
-        time.sleep(3)
+            elif tufts_elements:
+                print("On Tufts login page")
+            
+            time.sleep(3)
+            print("entering login information")
+            self._send_keys_from_css("#username", self.user_name)
+            self._send_keys_from_css("#password", self.password)
+            self._click_from_css("#login > button")
+            print("Entered Tufts username and password")
+            time.sleep(3)
+            
+            return True
+            
+        except TimeoutException:
+            print("Neither login page variant detected")
+            return False
     
+                # print("need to go back through library login")
+                # library_link = "https://tufts.primo.exlibrisgroup.com/discovery/search?query=any,contains,nexis%20uni&tab=Everything&search_scope=MyInst_and_CI&vid=01TUN_INST:01TUN&lang=en&offset=0"
+                # self.driver.get(library_link)
+
+                # # these next two lines get to nexis uni from Tufts library
+                # available_online_css = "#alma991017244849703851availabilityLine0 > span"
+                # self._click_from_css(available_online_css) #click "Available Online"
+                # # then retry login process again (btn-shib login, user, pass...)
+                # # but in testing, it opened in a new tab (which, yeah, it was gonna do)
+                # # but the original tab continued the process just fine... 
+                # # so maybe it just needs to navigate away from nexis uni?
+                # self._click_from_css(".btn-shib > .login")
+
     def _init_login(self):
         
         loggedin_home = "https://login.ezproxy.library.tufts.edu/login?auth=tufts&url=http://www.nexisuni.com"

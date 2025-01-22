@@ -6,7 +6,7 @@ class UserClass:
     def __init__(self, basin_code, currentUser, download_type):
         self.currentUser = currentUser
         self.download_type = download_type
-        self.basin = basin_code
+        self.basin_code = basin_code
         
     def getName(self):
         print(f'starting {self.download_type} process for {self.currentUser}')  
@@ -21,8 +21,8 @@ class UserClass:
             download_folder_temp = base_path_prefix + "This should point to where Chrome downloads files by default"
 
             #These will set by default
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path  + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path  + self.basin_code + ".csv"
 
             paths = {
                 "geography_folder": geography_folder,
@@ -37,8 +37,8 @@ class UserClass:
             base_path_prefix = "/Users/dvas22/"
             geography_folder = base_path_prefix + "Desktop/David/www/geography/"
             download_folder_temp = base_path_prefix + "Downloads/"
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "davey",
@@ -56,8 +56,8 @@ class UserClass:
             base_path_prefix = "/Users/david/"
             geography_folder = base_path_prefix + "Desktop/David/www/geography/"
             download_folder_temp = base_path_prefix + "Downloads/"
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "davey",
@@ -73,8 +73,8 @@ class UserClass:
             base_path_prefix = "/Users/selenawallace/" #and then we need everyone to just have a base path
             geography_folder = base_path_prefix + "Documents/geography/"
             download_folder_temp = base_path_prefix + "Downloads/"
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "swalla05",
@@ -91,8 +91,8 @@ class UserClass:
             base_path_prefix = "/Users/alexdorr/"
             geography_folder = base_path_prefix + "Documents/Events_automation/geography/"
             download_folder_temp = base_path_prefix + "Downloads/"
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "swalla05",
@@ -111,8 +111,8 @@ class UserClass:
             base_path_prefix = "C://Users/Melissa"
             geography_folder = base_path_prefix + "/Documents/EventsAutomation/geography/"
             download_folder_temp = base_path_prefix + "/Downloads/"
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "mmccra01",
@@ -131,8 +131,8 @@ class UserClass:
             download_folder_temp = base_path_prefix + "Downloads/"
 
             #These will set by default
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path  + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path  + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "rskinn02",
@@ -151,8 +151,8 @@ class UserClass:
             download_folder_temp = base_path_prefix + "Downloads/"
 
             #These will set by default
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path  + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path  + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "smahip01",
@@ -171,8 +171,8 @@ class UserClass:
             download_folder_temp = base_path_prefix + "Downloads/"
 
             #These will set by default
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path  + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path  + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "rchand03",
@@ -191,8 +191,8 @@ class UserClass:
             download_folder_temp = base_path_prefix + "Downloads/"
 
             #These will set by default
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path  + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path  + self.basin_code + ".csv"
 
             paths = {
                 "user_name": "mburge04",
@@ -209,8 +209,8 @@ class UserClass:
             geography_folder = "./"
             download_folder_temp = base_path_prefix + "/Downloads/" # do we need this?
             
-            download_folder = geography_folder + "data/downloads/" + self.basin + download_type_path
-            status_file = geography_folder + "data/status" + download_type_path + self.basin + ".csv"
+            download_folder = geography_folder + "data/downloads/" + self.basin_code + download_type_path
+            status_file = geography_folder + "data/status" + download_type_path + self.basin_code + ".csv"
 
             self.base_path = base_path_prefix
             self.user_name = self.currentUser
