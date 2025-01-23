@@ -7,6 +7,7 @@ from geography import RangesDownload
 import os
 import time
 import re
+from tqdm import tqdm
 
 start_date = '06/30/2008'
 end_date = '06/30/2024'
@@ -89,8 +90,9 @@ def full_process(current_user, paths):
     ranges_to_download = RangesDownload.get_ranges(download, current_user.download_folder) 
 
     # and this is the process
+    before = time.time()
     try:
-        for r in ranges_to_download:
+        for r in tqdm(ranges_to_download):
             dialog_box.check_clear_downloads(r)
             dialog_box.download_dialog(r)
             print(f"preparing to download range {r}")
@@ -110,6 +112,10 @@ def full_process(current_user, paths):
                     os.rename(default_download_path, geography_download_path)
                     print(f"moving file to {geography_download_path}")
 
+            after = time.time()
+            elapsed = after - before
+            print("Time elapsed since process began (minutes): ", elapsed/60)
+            
             download.reset()
     finally:
         ranges_to_download = RangesDownload.get_ranges(download, current_user.download_folder) # run this again when loop is complete
