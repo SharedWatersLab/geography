@@ -7,7 +7,7 @@ st.title("Nexus-Uni Downloader")
 uname = st.text_input("Enter username:")
 
 basins = [
-    "bakr", "amur"
+    "amur", "bakr", "buzi", "caxx", "cnct", "cull" "dnpr", "donx", "drin", "elbe", "emsx", "frth", "gamb", "gash"
 ]
 basin = st.selectbox("Select basin code:", basins)
 

@@ -16,6 +16,10 @@ from geography.classes.NoLinkClass import NoLinkClass
 from geography.classes.DownloadClass import Download
 from geography.classes.SearchClass import newsearch
 
+from selenium.common.exceptions import (
+    NoSuchElementException, TimeoutException, ElementNotInteractableException,
+    StaleElementReferenceException, ElementClickInterceptedException)
+
 # basin_code = "gash"
 # master_user = "selena"
 # download_type = "pdf"
@@ -122,12 +126,39 @@ class dialog:
         self.userclass = userclass
     
     def download_dialog(self, r):
-        open_download_options = "//button[@class='has_tooltip' and @data-action='downloadopt']"
-        self.download._click_from_xpath(open_download_options)
+        
+        self.open_download_options = "//button[@class='has_tooltip' and @data-action='downloadopt']"
+        self.result_range_field = "//input[@id='SelectedRange']"
 
-        # enter range
-        result_range_field_xpath = "//input[@id='SelectedRange']"
-        self.download._send_keys_from_xpath(result_range_field_xpath, r) # ensure r is set somewhere
+        try:
+            time.sleep(2)
+            self.download._click_from_xpath(self.open_download_options)
+            time.sleep(2)
+
+        except ElementClickInterceptedException:
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # check if we're in dialog box, looking for result range field
+                    WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, self.result_range_field)))                        
+                    break  # Exit the loop if successful
+
+                except (NoSuchElementException, TimeoutException):
+                    if attempt < max_retries - 1:
+                        print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
+                        time.sleep(10)
+                        self._click_from_xpath(self.open_download_options)  # Try opening the download options again
+                        time.sleep(2)
+                    else:
+                        print("could not open dialog box, will reset login")
+                        self.download.reset()
+                        # and then try to click again
+                        time.sleep(2)
+                        self.download._click_from_xpath(self.open_download_options)
+                        time.sleep(2)
+
+        # enter range once we're in dialog box
+        self.download._send_keys_from_xpath(self.result_range_field, r) # ensure r is set somewhere
 
         # click MS word option
         MSWord_option = "//input[@type= 'radio' and @id= 'Docx']"
@@ -170,15 +201,15 @@ class dialog:
         os.rename(original_path, unsorted_moved_path)
         print(f"File {unsorted_filename} moved to {self.userclass.basin_code} download folder")
 
-# dialog = dialog(download)
+# dialog = dialog(download) # make sure to change this, maybe to "dialog_box"
 
 # #have to do this each time to reset the list based on what's in the downloaded folder
 # ranges_to_download = get_ranges() 
 
 # # and this is the process
 # for r in ranges_to_download:
-#     dialog.check_clear_downloads(r)
-#     dialog.download_dialog(r)
+#     dialog.check_clear_downloads(r) # and these will need to be dialog_box... as well
+#     dialog.download_dialog(r) # ibid ^ dialog_box...
 #     print(f"preparing to download range {r}")
 
 #     download.wait_for_download()

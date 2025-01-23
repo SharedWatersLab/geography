@@ -672,6 +672,8 @@ class Download:
 
     def wait_for_download(self):
 
+        start_time = time.time()
+
         try:
             # First, wait for UI indication that download started
             print("Waiting for download to start...")
@@ -681,21 +683,25 @@ class Download:
             print("Download started, processing...")
             
             # Wait for UI indication that browser finished
-            WebDriverWait(self.driver, 1000).until_not(
+            WebDriverWait(self.driver, 400).until_not(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
             print("Browser reports download complete!")
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"Download completed in {elapsed_time:.2f} seconds")
             return True
-            # Check Downloads for file default
-            #actually maybe I want another method
-    
             
         except Exception as e:
             print(f"Error: {str(e)}")
             if "presence_of_element_located" in str(e):
                 print("Download popup never appeared")
             else:
-                print("Download didn't complete within the timeout period")
+                #print("Download didn't complete within the timeout period")
+                elapsed_time = time.time() - start_time
+                print(f"Download timed out after {elapsed_time:.2f} seconds")
+                return False
 
     def move_file(self, index):
         self.filename = self.get_filename(index)

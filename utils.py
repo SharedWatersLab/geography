@@ -89,35 +89,36 @@ def full_process(current_user, paths):
     ranges_to_download = RangesDownload.get_ranges(download, current_user.download_folder) 
 
     # and this is the process
-    for r in ranges_to_download:
-        dialog_box.check_clear_downloads(r)
-        dialog_box.download_dialog(r)
-        print(f"preparing to download range {r}")
+    try:
+        for r in ranges_to_download:
+            dialog_box.check_clear_downloads(r)
+            dialog_box.download_dialog(r)
+            print(f"preparing to download range {r}")
 
-        download.wait_for_download()
-        
-        # Find matching file
-        default_filename = [f for f in os.listdir(current_user.download_folder_temp) if re.match(r"Files \(\d+\)\.ZIP", f)]
+            download.wait_for_download()
+            
+            # Find matching file
+            default_filename = [f for f in os.listdir(current_user.download_folder_temp) if re.match(r"Files \(\d+\)\.ZIP", f)]
 
-        if default_filename:  # If we found any matching files
-            # Use the first matching file
-            default_download_path = os.path.join(current_user.download_folder_temp, default_filename[0])
-            geography_download_path = f"{current_user.download_folder}{current_user.basin_code}_results_{r}.ZIP"
+            if default_filename:  # If we found any matching files
+                # Use the first matching file
+                default_download_path = os.path.join(current_user.download_folder_temp, default_filename[0])
+                geography_download_path = f"{current_user.download_folder}{current_user.basin_code}_results_{r}.ZIP"
 
-            # Check if file exists and move it
-            if os.path.isfile(default_download_path):
-                os.rename(default_download_path, geography_download_path)
-                print(f"moving file to {geography_download_path}")
+                # Check if file exists and move it
+                if os.path.isfile(default_download_path):
+                    os.rename(default_download_path, geography_download_path)
+                    print(f"moving file to {geography_download_path}")
 
-        download.reset()
+            download.reset()
+    finally:
+        ranges_to_download = RangesDownload.get_ranges(download, current_user.download_folder) # run this again when loop is complete
 
-    ranges_to_download = RangesDownload.get_ranges(download, current_user.download_folder) # run this again when loop is complete
+        # get_ranges() will return not_downloaded_ranges as a list
 
-    # get_ranges() will return not_downloaded_ranges as a list
+        if not ranges_to_download:
+            print("all ranges for basin downloaded")
 
-    if not ranges_to_download:
-        print("all ranges for basin downloaded")
-
-    else:
-        print("ranges remaining:")
-        print(ranges_to_download)
+        else:
+            print("ranges remaining:")
+            print(ranges_to_download)
