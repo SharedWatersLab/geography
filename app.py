@@ -7,7 +7,7 @@ st.title("Nexus-Uni Downloader")
 uname = st.text_input("Enter username:")
 
 with open("basins.txt", "r") as f:
-    basins = f.readlines()
+    basins = [b.strip() for b in f.readlines()]
     
 # basins = [
 #     "amur", "bakr", "buzi", "caxx", "cnct", "cull" "dnpr", 
