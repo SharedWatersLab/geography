@@ -87,7 +87,7 @@ class WebDriverManager:
         # if os.getcwd() != self.paths['base_path'] + "geography":
         #     service_path = "..\chromedriver\chromedriver" if sys.platform.startswith("win") else "../chromedriver/chromedriver"
         # else:
-        service_path = ".\chromedriver\chromedriver" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
+        service_path = ".\chromedriver\chromedriver.exe" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
 
         # service_path = r".\chromedriver\chromedriver" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
         # print(service_path)
