@@ -226,7 +226,7 @@ class Login:
         
         try:
             tuftsloggedin_element = "co-branding-display-name" # class name
-            WebDriverWait(self.driver, self.timeout).until(
+            WebDriverWait(self.driver, 5).until(
                 EC.presence_of_element_located((By.CLASS_NAME, tuftsloggedin_element)))
             print("User is already logged in.")
         except TimeoutException:
