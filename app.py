@@ -2,7 +2,7 @@ import streamlit as st
 import os
 from utils import get_user, full_process
 
-st.title("Nexus-Uni Downloader")
+st.title("Nexis-Uni Downloader")
 
 uname = st.text_input("Enter username:")
 

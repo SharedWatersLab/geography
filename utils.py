@@ -10,7 +10,7 @@ import re
 from tqdm import tqdm
 
 start_date = '06/30/2008'
-end_date = '06/30/2024'
+end_date = '01/31/2025'
 
 def get_user(basin_code, uname, dload_type):
     basin_code = basin_code
