@@ -135,7 +135,7 @@ class dialog:
             self.download._click_from_xpath(self.open_download_options)
             time.sleep(2)
 
-        except ElementClickInterceptedException:
+        except (ElementClickInterceptedException, StaleElementReferenceException):
             max_retries = 3
             for attempt in range(max_retries):
                 try:
