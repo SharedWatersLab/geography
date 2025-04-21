@@ -9,10 +9,6 @@ uname = st.text_input("Enter username:")
 with open("basins.txt", "r") as f:
     basins = [b.strip() for b in f.readlines()]
     
-# basins = [
-#     "amur", "bakr", "buzi", "caxx", "cnct", "cull" "dnpr", 
-#     "donx", "drin", "elbe", "emsx", "frth", "gamb", "gash"
-# ]
 basin = st.selectbox("Select basin code:", basins)
 
 if st.button("Start Download"):

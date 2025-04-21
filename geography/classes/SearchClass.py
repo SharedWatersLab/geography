@@ -1,4 +1,5 @@
 import time
+import platform
 from selenium.webdriver.common.keys import Keys 
 
 from geography.classes.NoLinkClass import NoLinkClass
@@ -19,9 +20,11 @@ class newsearch:
         nlc_startdate = "//input[@class='dateFrom' and @aria-label='From']"
         nlc_enddate = "//input[@class='dateTo' and @aria-label='To']"
 
-        # maybe include a check here for if start date and end date are populated? 
-        # weirdly it stays populated
-        select_all = Keys.COMMAND, "a"
+        system = platform.system().lower()
+        if system == "darwin":
+            select_all = Keys.COMMAND, "a"
+        elif system == "windows":
+            select_all = Keys.CONTROL, "a"
 
         self.download._send_keys_from_xpath(nlc_startdate, select_all)
         self.download._send_keys_from_xpath(nlc_startdate, start_date)

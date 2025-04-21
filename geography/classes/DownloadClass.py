@@ -23,12 +23,10 @@ import time
 import sys
 import os
 
-#sys.path.append("..") #I'm not sure if I need this
+
 
 from classes.LoginClass import Login
 from classes.NoLinkClass import NoLinkClass
-#from classes.conversions.combine_results import CombineResults
-#from geography.classes.conversions.status_excel_to_pdf import convert_pdf
 
 class ResetRequiredException(Exception):
     pass
@@ -63,7 +61,7 @@ class Download:
             df = pd.DataFrame()
             df.to_csv(status_file)
             self.status_data = pd.read_csv(status_file, index_col=0)
-        #self.result_tally = 0  # initialize it at 0
+
     
     def _click_from_xpath(self, xpath):
         try:
@@ -99,9 +97,8 @@ class Download:
         timeline_button = '#podfiltersbuttondatestr-news' # this is CSS selector
         self._click_from_css(timeline_button)
         time.sleep(10)
-        # instead try with XPath
-        #wait = WebDriverWait(driver, 10)
-        #timeline_button = wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/main/div/main/ln-gns-resultslist/div[2]/div/div[1]/div[1]/div[2]/div/aside/button[2]")))
+        # if we need to try with XPath
+        #timeline_button = WebDriverWait(self.driver, self.timeout).until(EC.element_to_be_clickable((By.XPATH, "/html/body/main/div/main/ln-gns-resultslist/div[2]/div/div[1]/div[1]/div[2]/div/aside/button[2]")))
         #timeline_button.click()
         #time.sleep(5)
 
@@ -123,8 +120,6 @@ class Download:
         
         # If no format worked, raise an error
         raise ValueError(f"Unable to parse date string: {date_string}")
-        # this would be a good place to add an exception
-        #and then maybe add in a skip/break of the loop, move to next index #
         
     def set_date_range(self, index):
 
@@ -153,11 +148,9 @@ class Download:
         #self.min_date_field = '#refine > div.supplemental.timeline > div.date-form > div.min-picker > input'
         #self.max_date_field = '#refine > div.supplemental.timeline > div.date-form > div.max-picker > input'
         
-        # trying again with xpaths instead of css selector
+        # trying with xpaths instead of css selector
         self.min_date_field = "//input[@class='min-val' and @aria-label='Input Min Date']"
         self.max_date_field = "//input[@class='max-val' and @aria-label='Input Max Date']"
-
-        # need to include error handling for when timeline freezes, see what David did
         
         try:
             self._click_from_xpath(self.min_date_field)
@@ -376,14 +369,6 @@ class Download:
                 else:
                     pass
 
-            # add a bit of over_thousand-ing here ??
-            #if self.result_count > 1000:
-                # add row to the end of the dataframe
-                # and this is the code for like changing a cell
-                #self.status_data.loc[index, 'basin_count'] = self.result_count
-                #self.status_data.to_csv(self.status_file)
-
-
     
     def result_count_handling(self, index):
 
@@ -546,17 +531,11 @@ class Download:
             try:
                 # Wait for the element to be clickable
                 self.result_range_field = "//input[@id='SelectedRange']"
-                
-                # <input type="text" id="SelectedRange" name="SelectedRange" class="" placeholder="Enter one or more row ranges to export.">
 
                 # check if we're in the dialog box by looking for clickable field button
                 WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, self.result_range_field)))
                                                      
                 break  # Exit the loop if successful
-
-                # can i change this to like
-                #if results_list_option:
-                #   results_list_option.click()
 
             except (NoSuchElementException, TimeoutException):
                 if attempt < max_retries - 1:
@@ -586,24 +565,6 @@ class Download:
         time.sleep(5)
         self.click_download(index)
 
-        #I actually forget where all of this came from 
-        '''
-        try:
-            # Your existing pre-download steps
-            # (like clicking buttons, setting up the download, etc)
-            
-            # Use our new download handler for the actual download
-            if not self.download_handler.process_download(index):
-                raise SkipRowException("Download failed")
-                
-            # Update status if successful
-            self.status_data.at[index, 'finished'] = 1
-            
-        except Exception as e:
-            print(f"Error in download process: {str(e)}")
-            #self.reset_needed = True
-            raise SkipRowException("Error during download")
-        '''
     def check_clear_downloads(self, index): # for a manual check
         #if file in default_download contains the name "Files (" move it to a folder
         self.default_download_name = f"Files ({self.file_count}).ZIP"
@@ -612,17 +573,6 @@ class Download:
             print(f"there's an unsorted file matching {self.default_download_name} name in downloads")
             self.create_unsorted_folder(index)
             self.move_unsorted()
-        # or can do regular expression with just "Files ("
-        #
-        #self.create_unsorted_folder(index)
-        # if self.unsorted_past_download.is_dir():
-        #     print(f"there's an unsorted file matching {self.default_download_name} name in downloads")
-
-        #     self.move_unsorted()
-        # else:
-        #     print("didn't find a matching file")
-        #     pass
-
 
     def create_unsorted_folder(self, index):
         self.unsorted_folder = Path(f"{self.download_folder}/{self.basin_code}_unsorted_foundindex{index}") # in default download
@@ -642,9 +592,6 @@ class Download:
 
     def click_download(self, index): 
 
-        # check for a file in downloads with the naming convention and handle it!!
-        # maybe move it to a folder called "incomplete_discovered_index12"
-
         try:
             self.download_button = "//button[@type='submit' and @class='button primary' and @data-action='download']"
             self._click_from_xpath(self.download_button)
@@ -657,18 +604,11 @@ class Download:
                 return False
 
             time.sleep(5)
-            # Move file to correct location
-            #if not self.move_file(index):
-            #    print(f"Failed to move file for index {index}")
-            #    return False
-
             return True
 
         except Exception as e:
             print(f"Error processing download for index {index}: {str(e)}")
-            return False
-    
-        #self.result_count = self.get_result_count(index)       
+            return False  
 
     def wait_for_download(self):
 
@@ -713,7 +653,6 @@ class Download:
 
         else:
             # for some reason the PDF download filename defaults to 
-            #self.default_download_name = f"Files ({self.file_count}).ZIP"
             self.default_download_path = f"{self.download_folder_temp}/{self.default_download_name}"
             print(f"looking for {self.default_download_name} in default downloads folder")
 
@@ -743,9 +682,6 @@ class Download:
     def update_status(self, index):
         self.filename = self.get_filename(index)
         self.downloaded_file = self.filename + ".ZIP"
-        #self.result_count = self.get_result_count(index)
-        #filename_column
-        #finished_column
         
         downloaded_file_path = os.path.join(self.download_folder, self.downloaded_file)
         file_exists = os.path.isfile(downloaded_file_path)
@@ -766,7 +702,7 @@ class Download:
     def DownloadProcess(self, index):
         self.DateFilter(index)
         try:
-            self.DownloadDialog(index) # i had these indented too... the logic was that these don't need to happen if reset
+            self.DownloadDialog(index)
             self.file_handling(index)
         except SkipRowException:
             raise
@@ -783,11 +719,6 @@ class Download:
             # Check if all rows are finished
             if (self.status_data['finished'] == 1).all():
                 print(f"All rows for {basin_code} are downloaded!")
-                #if self.download_type == "excel": # oh is download type not here yet?
-                    #combine_excel = CombineResults(basin_code)
-                    #combine_excel.combine()
-                #else:
-                   #pass
                 break
 
             row = self.status_data.iloc[row_index]
@@ -831,6 +762,7 @@ class Download:
         self.nlc._search_process()
         time.sleep(5)
         self.DownloadSetup()
+
 #this calls it 
 '''
 
@@ -850,7 +782,3 @@ download = Download(
             timeout=20 )
 
 '''
-# and then to run it/check it 
-
-# now this will run the iterrows method
-#download.main(index=0, basin_code = basin_code)
