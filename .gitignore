@@ -183,3 +183,6 @@ geo_env
 
 ./chromedriver_temp
 ./chromedriver
+
+notebooks/searchterms_process/old
+notebooks/old
