@@ -48,7 +48,6 @@ status_file = paths["status_file"]
 
 def FullProcess():
 
-    #directory = (f"{basin_code}/{download_type}")
     if os.path.exists(download_folder):
         print(f"{basin_code}/{download_type} folder already exists")
     else:
@@ -101,9 +100,6 @@ def FullProcess():
             finished=False,  
             url=None,  
             timeout=20 )   
-
-    #status_data = download.status_data
-    #finished = download.finished
 
     # maybe check if all results downloaded here before proceeding to main download loop
     download.main(index=0, basin_code = basin_code)

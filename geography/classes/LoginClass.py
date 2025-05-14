@@ -31,13 +31,6 @@ sys.path.append(parent_dir)
 # and should it be in like all the classes?
 
 from driverTest import SetupDriver  # noqa: E402
-# setup = SetupDriver()
-# setup.setup_webdriver()
-# service = setup.service
-
-#service = Service(ChromeDriverManager().install())
-# driver = webdriver.Chrome() # (service=service)
-
 
 class PasswordManager:
     def __init__(self):
@@ -52,45 +45,14 @@ class PasswordManager:
         # Return the stored password
         return self.password
 
-'''
-# Create an instance of PasswordManager
-pm = PasswordManager()
-if pm.password is None:
-    password = pm.get_password()
-    print("Password set!")
-else: pass
-'''
-#is this right? will it ask again?
-
-#ideally if the section starting line 41 is good we don't need all this
-'''
-options = ChromeOptions()
-options.page_load_strategy = 'normal'
-options.add_argument("--start-maximized")
-
-#options.add_argument("user-data-dir=Users/<username>/Library/Application Support/Google/Chrome/Default")
-#prefs = {'download.default_directory' : '/Users/dvas22/Desktop/David/www/geography/downloads'}
-options.add_argument("user-data-dir=/tmp/storedLoginInformation1")
-
-prefs = {'download.prompt_for_download' : False}
-options.add_experimental_option('prefs', prefs)
-'''
-
 class WebDriverManager:
     def __init__(self):
         self.driver = None
         self.options = ChromeOptions()
         self.setup_options()
         self.driver_path = Path("./chromedriver") / ("chromedriver.exe" if sys.platform == "win32" else "chromedriver")
-        # self.paths = paths
 
-        # if os.getcwd() != self.paths['base_path'] + "geography":
-        #     service_path = "..\chromedriver\chromedriver" if sys.platform.startswith("win") else "../chromedriver/chromedriver"
-        # else:
         service_path = ".\chromedriver\chromedriver.exe" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
-
-        # service_path = r".\chromedriver\chromedriver" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
-        # print(service_path)
         self.service = Service(service_path)
     
     def setup_options(self):
@@ -99,36 +61,7 @@ class WebDriverManager:
         self.options.add_argument("--start-maximized")
         self.options.add_argument("user-data-dir=/tmp/storedLoginInformation")       
         prefs = {'download.prompt_for_download': False}
-        self.options.add_experimental_option('prefs', prefs)
-
-    # def setup_service(self):
-    #     os_type = setup.get_operating_system()
-    #     print(f"Detected operating system: {os_type}")
-
-    #     chrome_version = setup.get_chrome_version()
-    #     if chrome_version:
-    #         print(f"Detected Chrome version: {chrome_version}")
-    #         chromedriver_version = setup.get_matching_chromedriver_version(chrome_version)
-    #         if chromedriver_version:
-    #             print(f"Matching ChromeDriver version: {chromedriver_version}")
-    #             if setup.download_chromedriver(chromedriver_version, os_type):
-    #                 #move_chromedriver(os_type)
-    #                 print("downloaded")
-    #         else:
-    #             print("Failed to find a matching ChromeDriver version. Please ensure you have the latest version of Chrome installed.")
-    #     else:
-    #         print("Could not detect Chrome version. Please ensure Chrome is installed and you have the latest version.")
-        #self.service = Service(ChromeDriverManager().install())
-        #self.service = Service('/usr/local/bin/chromedriver')
-     
-        # should these two replace line 61?
-        #self.temp_foldername = "storedLoginInformation" + str(self.number)
-        #self.options.add_argument(self.temp_foldername)
-        # at some point I need to refer to reset() method right?
-        # or somehow instantiate it at the end of main script
-        # something like
-        #Login._init_login()
-      
+        self.options.add_experimental_option('prefs', prefs)     
     
     def start_driver(self):
         if not self.driver:
@@ -171,10 +104,8 @@ class Login:
     def reset(self):
         self.number += 1 # self.number = self.number + 1
         self.temp_foldername = "storedLoginInformation" + str(self.number)
-        # and then somewhere else the following ???
 
     def login_page(self):
-        #wait = WebDriverWait(self.driver, 5)
         
         TuftsLogin_selector = ".btn-shib > .login"
         OpenAthens_selector = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div'
@@ -204,19 +135,6 @@ class Login:
         except TimeoutException:
             print("Neither login page variant detected")
             return False
-    
-                # print("need to go back through library login")
-                # library_link = "https://tufts.primo.exlibrisgroup.com/discovery/search?query=any,contains,nexis%20uni&tab=Everything&search_scope=MyInst_and_CI&vid=01TUN_INST:01TUN&lang=en&offset=0"
-                # self.driver.get(library_link)
-
-                # # these next two lines get to nexis uni from Tufts library
-                # available_online_css = "#alma991017244849703851availabilityLine0 > span"
-                # self._click_from_css(available_online_css) #click "Available Online"
-                # # then retry login process again (btn-shib login, user, pass...)
-                # # but in testing, it opened in a new tab (which, yeah, it was gonna do)
-                # # but the original tab continued the process just fine... 
-                # # so maybe it just needs to navigate away from nexis uni?
-                # self._click_from_css(".btn-shib > .login")
 
     def _init_login(self):
         
@@ -312,12 +230,6 @@ class Login:
                             if duo_page_substring not in self.driver.current_url:
                                 print("DUO authentication completed")
                                 return True
-                    '''
-                # # Handle trust browser page
-                # if self._is_element_present_css("#trust-browser-button"):
-                #     self._click_from_css("#trust-browser-button")
-                #     print("Skipped trust browser page")
-'''
                     
                 # Check if we're still on the DUO page after waiting
                 if duo_page_substring not in self.driver.current_url:
@@ -351,59 +263,9 @@ class Login:
         except TimeoutException:
             print("login successful")
             return False
-        
-# '''
-#         #DUO to try to automate
-#         # in case we're allowed to use an IT bypass code
-#         #bypass_code = 123456789 # replace with the bypass code
-#         time.sleep(3)
-#         try:
-#             duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
-#             if duo_page_substring in self.driver.current_url:
-#                 print('DUO push code on screen OR wait for call')
-#                 time.sleep(20)
-#             else: pass
-        
-#             if duo_page_substring in self.driver.current_url:
-#                 other_options_selector = "#auth-view-wrapper > div:nth-child(2) > div.row.display-flex.other-options-link.align-flex-justify-content-center.size-margin-bottom-large.size-margin-top-small"
-#                 self._click_from_css(other_options_selector)
-#                 DUO_phone_call = 'body > div > div > div.card.card--white-label.uses-white-label-border-color.display-flex.flex-direction-column > div > div.all-auth-methods.display-flex.flex-value-one > ul > li:nth-child(2) > a > span.method-select-chevron > svg'
-#                 self._click_from_css(DUO_phone_call)
-#                 print('DUO calling')
-#                 time.sleep(20)
-#             else: 
-#                 self._click_from_css("#trust-browser-button")
-#                 print("skipped trust browser page")
-
-#         #if DUO fails (sometimes won't call phone), try again
-#         #if duo_page_substring in self.driver.current_url:
-#             #time.sleep(2)
-#             # can do other options again and find selector for code again
-#             # and another time.sleep()
-
-#         except NoSuchElementException:
-#             print("duo not prompted")
-#             pass
-
-#         #in case trust browser page comes up
-#         time.sleep(3)
-#         try:
-#             if duo_page_substring in self.driver.current_url :
-#                 self._click_from_css("#trust-browser-button")
-#                 print("skipped trust browser page")
-                
-#             else:
-#                 pass
-
-#         except NoSuchElementException:
-#             print("trust browser page not prompted")
-#             pass
-#             '''
-
 
 # plop into main
-# '''
-# '''
+
 # from classes.LoginClass import WebDriverManager, Login, PasswordManager
 
 # if __name__ == "__main__":  
