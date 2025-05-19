@@ -69,14 +69,14 @@ class dialog:
             for attempt in range(max_retries):
                 try:
                     # check if we're in dialog box, looking for result range field
-                    WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, self.result_range_field)))                        
+                    WebDriverWait(self.download.driver, 10).until(EC.element_to_be_clickable((By.XPATH, self.result_range_field)))                        
                     break  # Exit the loop if successful
 
                 except (NoSuchElementException, TimeoutException):
                     if attempt < max_retries - 1:
                         print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
                         time.sleep(10)
-                        self._click_from_xpath(self.open_download_options)  # Try opening the download options again
+                        self.download._click_from_xpath(self.open_download_options)  # Try opening the download options again
                         time.sleep(2)
                     else:
                         print("could not open dialog box, will reset login")
