@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException, TimeoutException
 import time
@@ -85,44 +86,164 @@ class NoLinkClass:
         time.sleep(5)
 
     #click search
-    def complete_search(self):
+    def complete_search(self, max_attempts=3):
         self.search_button_lower = "//button[@class='btn search' and @data-action='search']"
         self.search_button_upper = "//button[@data-action='search' and @id='mainSearch' and @aria-label='Search']"
-        try:
-            self._click_from_xpath(self.search_button_lower)
-        except Exception as e:
-            self._click_from_xpath(self.search_button_upper)
-        time.sleep(5)
-
-        # sometimes, for some reason, it doesn't click the search button
-        # check to see if we're on the results page and if not, click again
-
-        # self.results_page_substring = '/search/' #'pdsearchterms=hlead' # it changed recently?
-        # if self.results_page_substring in self.driver.current_url:
-        #     print("clicked search, on results page")
-        #     return
-        # else: 
-        #     try:
-        #         time.sleep(10)
-        #         self._click_from_xpath(self.search_button)
-        #         print("had to click search button again for some reason") # eventually remove this but I'm curious how often it needs to try again
-        #         time.sleep(3)
-        #     except NoSuchElementException:
-        #         pass
-        #     except StaleElementReferenceException:
-        #         pass
-
-        try:
-            result_count_element = "//button[@data-id='urb:hlct:16']"
-            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located(By.XPATH, result_count_element))
-            print("Clicked search, on results page")
-
-        except Exception as e:
-            print("Retry click search")
-            self._click_from_css('#wdth9kk')
-            time.sleep(3)
+        search_buttons_css = ["button.btn.search[data-action='search']", "#mainSearch"]
+        
+        for attempt in range(max_attempts):
+            try:
+                # First check if we're already on the results page (if a previous click worked but didn't register in code)
+                try:
+                    # Check for elements that only appear on results page
+                    result_indicators = [
+                        "//li[contains(@class, 'active') and @data-actualresultscount]",
+                        "//button[@data-id='urb:hlct:16']",
+                        "//div[contains(@class, 'results-list')]"
+                    ]
+                    
+                    for indicator in result_indicators:
+                        try:
+                            if self.driver.find_element(By.XPATH, indicator).is_displayed():
+                                print("Already on results page, search was successful")
+                                return True
+                        except:
+                            continue
+                except:
+                    pass
                 
-        # if the click search issue persists, try encompassing click into a try loop 
+                # Try clicking with different methods
+                clicked = False
+                
+                # Try XPath methods first
+                try:
+                    # Try to make sure the button is in view
+                    for xpath in [self.search_button_lower, self.search_button_upper]:
+                        try:
+                            button = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((By.XPATH, xpath))
+                            )
+                            # Scroll to the button
+                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+                            time.sleep(1)  # Give a moment for the page to settle
+                            
+                            # Try multiple click methods
+                            try:
+                                button.click()
+                                clicked = True
+                                print(f"Clicked search button using standard click with xpath: {xpath}")
+                                break
+                            except:
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", button)
+                                    clicked = True
+                                    print(f"Clicked search button using JS click with xpath: {xpath}")
+                                    break
+                                except:
+                                    try:
+                                        ActionChains(self.driver).move_to_element(button).click().perform()
+                                        clicked = True
+                                        print(f"Clicked search button using ActionChains with xpath: {xpath}")
+                                        break
+                                    except:
+                                        continue
+                        except:
+                            continue
+                except:
+                    pass
+                    
+                # If XPath methods failed, try CSS methods
+                if not clicked:
+                    for css in search_buttons_css:
+                        try:
+                            button = WebDriverWait(self.driver, 5).until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, css))
+                            )
+                            # Scroll to the button
+                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+                            time.sleep(1)
+                            
+                            try:
+                                button.click()
+                                clicked = True
+                                print(f"Clicked search button using standard click with CSS: {css}")
+                                break
+                            except:
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", button)
+                                    clicked = True
+                                    print(f"Clicked search button using JS click with CSS: {css}")
+                                    break
+                                except:
+                                    try:
+                                        ActionChains(self.driver).move_to_element(button).click().perform()
+                                        clicked = True
+                                        print(f"Clicked search button using ActionChains with CSS: {css}")
+                                        break
+                                    except:
+                                        continue
+                        except:
+                            continue
+                
+                # If no click worked, try a last resort
+                if not clicked:
+                    try:
+                        # Try to find any search button by text content
+                        search_buttons = self.driver.find_elements(By.XPATH, "//button[contains(text(), 'Search') or contains(@aria-label, 'Search')]")
+                        for button in search_buttons:
+                            if button.is_displayed():
+                                self.driver.execute_script("arguments[0].click();", button)
+                                clicked = True
+                                print("Clicked search button using text content search")
+                                break
+                    except:
+                        pass
+                
+                # Wait for results page to load
+                time.sleep(5)
+                
+                # Verify we're on the results page
+                try:
+                    # Try to find an element that should be on the results page
+                    for indicator in result_indicators:
+                        try:
+                            WebDriverWait(self.driver, 10).until(
+                                EC.presence_of_element_located((By.XPATH, indicator))
+                            )
+                            print("Successfully verified we're on results page")
+                            return True
+                        except:
+                            continue
+                    
+                    # If we got here, we likely didn't reach the results page
+                    if attempt < max_attempts - 1:
+                        print(f"Search attempt {attempt+1} failed. Search button may have been clicked but results page not loaded. Retrying...")
+                        # Try refreshing if on an error page
+                        if "error" in self.driver.title.lower() or "problem" in self.driver.title.lower():
+                            self.driver.refresh()
+                            time.sleep(5)
+                    else:
+                        print("All search attempts failed. Could not reach results page.")
+                        return False
+                        
+                except Exception as e:
+                    print(f"Error verifying results page: {str(e)}")
+                    if attempt < max_attempts - 1:
+                        print(f"Retrying search (attempt {attempt+2}/{max_attempts})...")
+                    else:
+                        print("All search attempts failed.")
+                        return False
+                        
+            except Exception as e:
+                print(f"Search attempt {attempt+1} failed with error: {str(e)}")
+                if attempt < max_attempts - 1:
+                    print(f"Retrying search (attempt {attempt+2}/{max_attempts})...")
+                    time.sleep(2)
+                else:
+                    print("All search attempts failed.")
+                    return False
+        
+        return False
 
     def _search_process(self):
         self.NexisHome()
