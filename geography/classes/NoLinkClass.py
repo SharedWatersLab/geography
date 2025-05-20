@@ -47,6 +47,12 @@ class NoLinkClass:
             element.click()
         except TimeoutException:
             raise NoSuchElementException(f"Element with xpath '{xpath}' not found")
+        
+    def _send_keys_from_xpath(self, xpath, keys):
+        wait = WebDriverWait(self.driver, self.timeout)
+        element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath))) 
+        self.driver.execute_script("arguments[0].scrollIntoView();", element)
+        element.send_keys(keys)
     
     def NexisHome(self):
         self.nexis_home_substring = 'bisnexishome'
@@ -70,33 +76,51 @@ class NoLinkClass:
         #print(f"Initializing search for {row['Basin_Name']})
 
     def _search_box(self):
-        self.search_box = '#searchTerms'
+        self.search_box = '#searchTerms' # css
+        #self.search_box = "//input[@type='text' and @id='searchTerms']"
         self.search_string = 'hlead(' + self.box_1_keys + ') and hlead(' + self.box_2_keys + ') and hlead(' + self.box_3_keys + ') and not hlead(' + self.box_4_keys + ')'
-        self._send_keys_from_css(self.search_box, self.search_string)
+        self._send_keys_from_css(self.search_box, self.search_string) # old
+        #self._send_keys_from_xpath(self.search_box, self.search_string)
+
         time.sleep(5)
 
     #click search
     def complete_search(self):
-        self.search_button = "//button[@class='btn search' and @data-action='search']"
-        self._click_from_xpath(self.search_button)
-        time.sleep(10)
+        self.search_button_lower = "//button[@class='btn search' and @data-action='search']"
+        self.search_button_upper = "//button[@data-action='search' and @id='mainSearch' and @aria-label='Search']"
+        try:
+            self._click_from_xpath(self.search_button_lower)
+        except Exception as e:
+            self._click_from_xpath(self.search_button_upper)
+        time.sleep(5)
 
         # sometimes, for some reason, it doesn't click the search button
         # check to see if we're on the results page and if not, click again
-        self.results_page_substring = '/search/' #'pdsearchterms=hlead' # it changed recently?
-        if self.results_page_substring in self.driver.current_url:
-            print("clicked search, on results page")
-            return
-        else: 
-            try:
-                time.sleep(10)
-                self._click_from_xpath(self.search_button)
-                print("had to click search button again for some reason") # eventually remove this but I'm curious how often it needs to try again
-                time.sleep(3)
-            except NoSuchElementException:
-                pass
-            except StaleElementReferenceException:
-                pass
+
+        # self.results_page_substring = '/search/' #'pdsearchterms=hlead' # it changed recently?
+        # if self.results_page_substring in self.driver.current_url:
+        #     print("clicked search, on results page")
+        #     return
+        # else: 
+        #     try:
+        #         time.sleep(10)
+        #         self._click_from_xpath(self.search_button)
+        #         print("had to click search button again for some reason") # eventually remove this but I'm curious how often it needs to try again
+        #         time.sleep(3)
+        #     except NoSuchElementException:
+        #         pass
+        #     except StaleElementReferenceException:
+        #         pass
+
+        try:
+            result_count_element = "//button[@data-id='urb:hlct:16']"
+            WebDriverWait(self.driver, 5).until(EC.presence_of_element_located(By.XPATH, result_count_element))
+            print("Clicked search, on results page")
+
+        except Exception as e:
+            print("Retry click search")
+            self._click_from_css('#wdth9kk')
+            time.sleep(3)
                 
         # if the click search issue persists, try encompassing click into a try loop 
 

@@ -224,22 +224,22 @@ class Download:
         sortby_dropdown_css = '#select'
         oldestnewest_option_text = 'Date (oldest-newest)'
             
-        def handle_popup():
-            analytics_popup = "//button[@class='_pendo-close-guide' and @aria-label='Close' and contains(@id, 'pendo-close-guide')]"
-            try:
-                popup_element = WebDriverWait(self.driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, analytics_popup))
-                )
-                popup_element.click()
-                print("Popup closed")
-                time.sleep(2)
-            except TimeoutException:
-                print("No popup found") 
+        # def handle_popup():
+        #     analytics_popup = "//button[@class='_pendo-close-guide' and @aria-label='Close' and contains(@id, 'pendo-close-guide')]"
+        #     try:
+        #         popup_element = WebDriverWait(self.driver, 5).until(
+        #             EC.presence_of_element_located((By.XPATH, analytics_popup))
+        #         )
+        #         popup_element.click()
+        #         print("Popup closed")
+        #         time.sleep(2)
+        #     except TimeoutException:
+        #         print("No popup found") 
 
         for attempt in range(3):  # Try up to 3 times
             try:
                 # Check for and close popup before interacting with dropdown
-                handle_popup()
+                #handle_popup()
 
                 # Wait for the dropdown to be clickable
                 dropdown = WebDriverWait(self.driver, 20).until(
@@ -265,15 +265,15 @@ class Download:
                 time.sleep(5)
                 continue
                 
-            except ElementClickInterceptedException:
-                print("Popup is in the way, attempting to close it")
-                handle_popup()
-                continue
+            # except ElementClickInterceptedException:
+            #     print("Popup is in the way, attempting to close it")
+            #     handle_popup()
+            #     continue
                 
-            except ElementNotInteractableException:
-                print("Element not interactable, attempting to close popup if present")
-                handle_popup()
-                continue
+            # except ElementNotInteractableException:
+            #     print("Element not interactable, attempting to close popup if present")
+            #     handle_popup()
+            #     continue
         
         print("Failed to sort by date after multiple attempts")
 
@@ -289,19 +289,32 @@ class Download:
                 count_element = WebDriverWait(self.driver, self.timeout).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active"))
                 )
-                
+                # could also try 
+
                 # Wait for the attribute to be non-empty
-                WebDriverWait(self.driver, self.timeout).until(
-                    lambda d: count_element.get_attribute("data-actualresultscount") != ""
-                )
                 
-                result_count_element = count_element.get_attribute("data-actualresultscount")
+                try:
+                    count_attribute = 'data-actualresultscount'
+                    WebDriverWait(self.driver, self.timeout).until(
+                        lambda d: count_element.get_attribute(count_attribute) != ""
+                    ) 
+                    result_count_element = count_element.get_attribute(count_attribute)
+                    self.result_count = int(result_count_element)
+
+                except Exception as e: # as of the May 17-ish update, there's a space in the result count element
+                    count_attribute = ' data-actualresultscount'
+                    WebDriverWait(self.driver, self.timeout).until(
+                        lambda d: count_element.get_attribute(count_attribute) != ""
+                    ) 
+                
+                result_count_element = count_element.get_attribute(count_attribute)
                 self.result_count = int(result_count_element)
                 return self.result_count
 
             except TypeError:
                 print("Result count type error, waiting 20s for count to appear")
-                time.sleep(20)
+                #time.sleep(20) # or 
+                self.driver.refresh() #??
                 continue
 
             except (TimeoutException, NoSuchElementException, StaleElementReferenceException) as e:

@@ -56,7 +56,7 @@ class dialog:
     
     def download_dialog(self, r):
         
-        self.open_download_options = "//button[@class='has_tooltip' and @data-action='downloadopt']"
+        self.open_download_options = "//button[@data-action='downloadopt' and @aria-label='Download']"
         self.result_range_field = "//input[@id='SelectedRange']"
 
         try:
