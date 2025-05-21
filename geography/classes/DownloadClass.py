@@ -219,27 +219,101 @@ class Download:
         self._click_from_xpath(moderate_button)
         print("group duplicate results by moderate similarity")
         time.sleep(10)
+
+    def handle_popups(self, max_popups=5):
+
+        # analytics
+        # //button[@class='_pendo-close-guide' and @aria-label='Close' and contains(@id, 'pendo-close-guide')]"
+        # pdf one (probably temporary)
+        # <button aria-label="Close" id="pendo-close-guide-de8004c4" class="_pendo-close-guide"
+        # ai one (maybe also temp? more an ad... not really in the way)
+        #button aria-label="Close" id="pendo-close-guide-e1efd0e6" class="_pendo-close-guide"
+    
+        # Counter to prevent infinite loops
+        popups_closed = 0
+        
+        # A collection of common popup identifiers
+        popup_patterns = [
+            # Pendo popups with various IDs
+            #"//button[contains(@class, '_pendo-close-guide') and contains(@id, 'pendo-close-guide')]", # analytics, from july 2024 not there anymore
+            "//button[contains(@class, 'pendo-close-guide')]",
+            "//button[contains(@id, 'pendo-close-guide')]",
+            "//div[contains(@id, 'pendo-guide-container')]//button[contains(@aria-label, 'Close')]",
+            
+            # General close buttons for popups/modals
+            "//button[@aria-label='Close']",
+            "//button[contains(@class, 'close')]",
+            "//*[contains(@class, 'modal')]//button[contains(@class, 'close')]",
+            "//div[contains(@class, 'popup')]//button",
+            "//div[contains(@class, 'modal')]//button",
+            
+            # Common close icons
+            "//*[contains(@class, 'close-icon')]",
+            "//i[contains(@class, 'fa-times')]",
+            "//span[contains(@class, 'close')]",
+            
+            # X buttons (common in popups)
+            "//button[text()='✕' or text()='×' or text()='X' or text()='x']",
+            "//*[text()='✕' or text()='×' or text()='X' or text()='x']"
+        ]
+        
+        while popups_closed < max_popups:
+            found_popup = False
+            
+            # First check if any popups are visible
+            for pattern in popup_patterns:
+                try:
+                    # Find all elements matching the pattern
+                    elements = self.driver.find_elements(By.XPATH, pattern)
+                    
+                    for element in elements:
+                        try:
+                            if element.is_displayed():
+                                # Try scrolling to make sure it's in view
+                                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+                                time.sleep(0.5)
+                                
+                                # Try different click methods
+                                try:
+                                    element.click()
+                                except:
+                                    try:
+                                        self.driver.execute_script("arguments[0].click();", element)
+                                    except:
+                                        try:
+                                            ActionChains(self.driver).move_to_element(element).click().perform()
+                                        except:
+                                            continue
+                                
+                                print(f"Closed popup using pattern: {pattern}")
+                                found_popup = True
+                                popups_closed += 1
+                                time.sleep(1)  # Short wait after closing a popup
+                                break  # Break the inner loop after closing one popup
+                        except:
+                            continue
+                    
+                    if found_popup:
+                        break  # Break the outer loop to restart from the beginning
+                        
+                except Exception as e:
+                    continue
+            
+            # If no popup was found and closed, we're done
+            if not found_popup:
+                break
+        
+        print(f"Total popups closed: {popups_closed}")
+        return popups_closed
     
     def sort_by_date(self):
         sortby_dropdown_css = '#select'
         oldestnewest_option_text = 'Date (oldest-newest)'
-            
-        # def handle_popup():
-        #     analytics_popup = "//button[@class='_pendo-close-guide' and @aria-label='Close' and contains(@id, 'pendo-close-guide')]"
-        #     try:
-        #         popup_element = WebDriverWait(self.driver, 5).until(
-        #             EC.presence_of_element_located((By.XPATH, analytics_popup))
-        #         )
-        #         popup_element.click()
-        #         print("Popup closed")
-        #         time.sleep(2)
-        #     except TimeoutException:
-        #         print("No popup found") 
 
         for attempt in range(3):  # Try up to 3 times
             try:
                 # Check for and close popup before interacting with dropdown
-                #handle_popup()
+                self.handle_popups()
 
                 # Wait for the dropdown to be clickable
                 dropdown = WebDriverWait(self.driver, 20).until(
@@ -265,15 +339,15 @@ class Download:
                 time.sleep(5)
                 continue
                 
-            # except ElementClickInterceptedException:
-            #     print("Popup is in the way, attempting to close it")
-            #     handle_popup()
-            #     continue
+            except ElementClickInterceptedException:
+                print("Popup is in the way, attempting to close it")
+                self.handle_popups()
+                continue
                 
-            # except ElementNotInteractableException:
-            #     print("Element not interactable, attempting to close popup if present")
-            #     handle_popup()
-            #     continue
+            except ElementNotInteractableException:
+                print("Element not interactable, attempting to close popup if present")
+                self.handle_popups()
+                continue
         
         print("Failed to sort by date after multiple attempts")
 
