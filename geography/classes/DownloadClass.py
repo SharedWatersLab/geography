@@ -357,46 +357,73 @@ class Download:
         self.sort_by_date()
 
     def get_result_count(self, index, max_attempts=3):
-       for attempt in range(max_attempts):
+        for attempt in range(max_attempts):
             try:
-                # Wait for the element to be present
-                count_element = WebDriverWait(self.driver, self.timeout).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active"))
+                # First wait for page to be fully loaded
+                WebDriverWait(self.driver, self.timeout).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete"
                 )
-                # could also try 
-
-                # Wait for the attribute to be non-empty
                 
+                # Try multiple selector strategies
+                selectors = [
+                    "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active",  # Original
+                    "li.active[data-actualresultscount]",  # More generic
+                    "//li[contains(@class, 'active') and @data-actualresultscount]"  # XPath alternative
+                ]
+                
+                count_element = None
+                for selector in selectors:
+                    try:
+                        if selector.startswith("//"):
+                            count_element = WebDriverWait(self.driver, 5).until(
+                                EC.presence_of_element_located((By.XPATH, selector))
+                            )
+                        else:
+                            count_element = WebDriverWait(self.driver, 5).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                            )
+                        if count_element:
+                            break
+                    except:
+                        continue
+                
+                if not count_element:
+                    raise NoSuchElementException("Could not find the result count element with any selector")
+                
+                # Check for data attribute or try to get text content
+                result_count = None
                 try:
-                    count_attribute = 'data-actualresultscount'
-                    WebDriverWait(self.driver, self.timeout).until(
-                        lambda d: count_element.get_attribute(count_attribute) != ""
-                    ) 
-                    result_count_element = count_element.get_attribute(count_attribute)
-                    self.result_count = int(result_count_element)
-
-                except Exception as e: # as of the May 17-ish update, there's a space in the result count element
-                    count_attribute = ' data-actualresultscount'
-                    WebDriverWait(self.driver, self.timeout).until(
-                        lambda d: count_element.get_attribute(count_attribute) != ""
-                    ) 
+                    # Try getting the attribute
+                    result_count = count_element.get_attribute("data-actualresultscount")
+                    if not result_count:
+                        # Try getting text directly
+                        result_count = count_element.text
+                        # Extract numbers from text if needed
+                        import re
+                        numbers = re.findall(r'\d+', result_count)
+                        if numbers:
+                            result_count = numbers[0]
+                except:
+                    # Maybe try JavaScript as a last resort
+                    result_count = self.driver.execute_script(
+                        "return arguments[0].getAttribute('data-actualresultscount') || arguments[0].textContent", 
+                        count_element
+                    )
                 
-                result_count_element = count_element.get_attribute(count_attribute)
-                self.result_count = int(result_count_element)
-                return self.result_count
-
-            except TypeError:
-                print("Result count type error, waiting 20s for count to appear")
-                #time.sleep(20) # or 
-                self.driver.refresh() #??
-                continue
-
+                if result_count and result_count.strip():
+                    self.result_count = int(result_count)
+                    return self.result_count
+                else:
+                    print("Empty result count, waiting and retrying...")
+                    time.sleep(10)
+                    continue
+                    
             except (TimeoutException, NoSuchElementException, StaleElementReferenceException) as e:
                 print(f"Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < max_attempts - 1:
                     print("Refreshing page and retrying...")
                     self.driver.refresh()
-                    time.sleep(5)  # Wait for page to reload
+                    time.sleep(8)  # Increased wait time after refresh
                 else:
                     print("Max attempts reached. Could not retrieve result count.")
                     if self.download_type == 'excel':
@@ -405,7 +432,6 @@ class Download:
                         self.status_data.loc[index, 'total_count'] = None
                     self.status_data.to_csv(self.status_file)
                     return None
-
             except ValueError as e:
                 print(f"Error converting result count to integer: {str(e)}")
                 if self.download_type == 'excel':
