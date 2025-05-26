@@ -357,89 +357,250 @@ class Download:
         self.sort_by_date()
 
     def get_result_count(self, index, max_attempts=3):
+        """
+        Resilient function to get result count that handles:
+        - Attribute name variations (with/without spaces)
+        - Multiple possible element structures  
+        - Timing issues with large result sets
+        - Future website changes
+        """
+        
         for attempt in range(max_attempts):
             try:
-                # First wait for page to be fully loaded
+                print(f"Attempt {attempt + 1} to get result count...")
+                
+                # Wait for page to be fully loaded and stable
                 WebDriverWait(self.driver, self.timeout).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
                 
-                # Try multiple selector strategies
-                selectors = [
-                    "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active",  # Original
-                    "li.active[data-actualresultscount]",  # More generic
-                    "//li[contains(@class, 'active') and @data-actualresultscount]"  # XPath alternative
+                # Additional wait for any JavaScript to finish (especially important for large result sets)
+                time.sleep(2)
+                
+                # Try to wait for network activity to settle (helps with large result sets)
+                try:
+                    WebDriverWait(self.driver, 10).until(
+                        lambda d: d.execute_script("return jQuery.active == 0") if d.execute_script("return typeof jQuery !== 'undefined'") else True
+                    )
+                except:
+                    pass  # jQuery might not be available
+                
+                # Multiple strategies to find the result count element
+                strategies = [
+                    # Strategy 1: Original selector with various attribute name possibilities
+                    {
+                        "name": "Original CSS with attribute variations",
+                        "method": "css_with_attributes",
+                        "selector": "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active",
+                        "attributes": ["data-actualresultscount", " data-actualresultscount", "data-actualresultscount ", " data-actualresultscount "]
+                    },
+                    
+                    # Strategy 2: More generic CSS selectors
+                    {
+                        "name": "Generic CSS selectors",
+                        "method": "css_with_attributes", 
+                        "selector": "li.active",
+                        "attributes": ["data-actualresultscount", " data-actualresultscount", "data-actualresultscount ", " data-actualresultscount "]
+                    },
+                    
+                    # Strategy 3: XPath with attribute variations
+                    {
+                        "name": "XPath with attribute checks",
+                        "method": "xpath_attributes",
+                        "selectors": [
+                            "//li[contains(@class, 'active') and (@data-actualresultscount or @*[name()=' data-actualresultscount'])]",
+                            "//li[@class='active' and (@data-actualresultscount or @*[name()=' data-actualresultscount'])]",
+                            "//ul/li[contains(@class, 'active')][@data-actualresultscount or @*[name()=' data-actualresultscount']]"
+                        ]
+                    },
+                    
+                    # Strategy 4: Find by text content patterns
+                    {
+                        "name": "Text content extraction",
+                        "method": "text_patterns",
+                        "selectors": [
+                            "//li[contains(@class, 'active')]",
+                            "//*[contains(@class, 'result') and contains(@class, 'count')]",
+                            "//*[contains(text(), 'result') or contains(text(), 'Result')]"
+                        ]
+                    },
+                    
+                    # Strategy 5: JavaScript-based extraction
+                    {
+                        "name": "JavaScript extraction",
+                        "method": "javascript"
+                    }
                 ]
                 
-                count_element = None
-                for selector in selectors:
+                result_count = None
+                successful_strategy = None
+                
+                for strategy in strategies:
                     try:
-                        if selector.startswith("//"):
-                            count_element = WebDriverWait(self.driver, 5).until(
-                                EC.presence_of_element_located((By.XPATH, selector))
-                            )
-                        else:
-                            count_element = WebDriverWait(self.driver, 5).until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                            )
-                        if count_element:
+                        if strategy["method"] == "css_with_attributes":
+                            elements = self.driver.find_elements(By.CSS_SELECTOR, strategy["selector"])
+                            for element in elements:
+                                if element.is_displayed():
+                                    for attr in strategy["attributes"]:
+                                        try:
+                                            value = element.get_attribute(attr)
+                                            if value and value.strip() and value.strip().isdigit():
+                                                result_count = int(value.strip())
+                                                successful_strategy = f"{strategy['name']} - attribute: '{attr}'"
+                                                break
+                                        except:
+                                            continue
+                                    if result_count:
+                                        break
+                        
+                        elif strategy["method"] == "xpath_attributes":
+                            for selector in strategy["selectors"]:
+                                try:
+                                    elements = self.driver.find_elements(By.XPATH, selector)
+                                    for element in elements:
+                                        if element.is_displayed():
+                                            # Try different attribute name variations
+                                            for attr in ["data-actualresultscount", " data-actualresultscount"]:
+                                                try:
+                                                    value = element.get_attribute(attr)
+                                                    if value and value.strip() and value.strip().isdigit():
+                                                        result_count = int(value.strip())
+                                                        successful_strategy = f"{strategy['name']} - {selector}"
+                                                        break
+                                                except:
+                                                    continue
+                                            if result_count:
+                                                break
+                                    if result_count:
+                                        break
+                                except:
+                                    continue
+                        
+                        elif strategy["method"] == "text_patterns":
+                            for selector in strategy["selectors"]:
+                                try:
+                                    elements = self.driver.find_elements(By.XPATH, selector)
+                                    for element in elements:
+                                        if element.is_displayed():
+                                            text = element.text.strip()
+                                            # Look for numbers in the text
+                                            import re
+                                            numbers = re.findall(r'(\d{1,3}(?:,\d{3})*|\d+)', text)
+                                            if numbers:
+                                                # Take the largest number found (likely the result count)
+                                                largest_num = max([int(num.replace(',', '')) for num in numbers])
+                                                if largest_num > 0:
+                                                    result_count = largest_num
+                                                    successful_strategy = f"{strategy['name']} - text extraction: '{text[:50]}...'"
+                                                    break
+                                    if result_count:
+                                        break
+                                except:
+                                    continue
+                        
+                        elif strategy["method"] == "javascript":
+                            # Use JavaScript to search for the element and attribute
+                            js_script = """
+                            // Try multiple approaches to find the result count
+                            var possibleSelectors = [
+                                'li.active[data-actualresultscount]',
+                                'li.active[ data-actualresultscount]',
+                                'li[class*="active"][data-actualresultscount]',
+                                'li[class*="active"][ data-actualresultscount]'
+                            ];
+                            
+                            for (var i = 0; i < possibleSelectors.length; i++) {
+                                var element = document.querySelector(possibleSelectors[i]);
+                                if (element) {
+                                    var attrs = ['data-actualresultscount', ' data-actualresultscount'];
+                                    for (var j = 0; j < attrs.length; j++) {
+                                        var value = element.getAttribute(attrs[j]);
+                                        if (value && value.trim() && !isNaN(value.trim())) {
+                                            return {value: parseInt(value.trim()), selector: possibleSelectors[i], attribute: attrs[j]};
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Fallback: search all elements with any data attribute containing 'result'
+                            var allElements = document.querySelectorAll('[data*="result"], [class*="result"], [id*="result"]');
+                            for (var k = 0; k < allElements.length; k++) {
+                                var el = allElements[k];
+                                var attrs = el.getAttributeNames();
+                                for (var l = 0; l < attrs.length; l++) {
+                                    if (attrs[l].includes('result') || attrs[l].includes('count')) {
+                                        var val = el.getAttribute(attrs[l]);
+                                        if (val && val.trim() && !isNaN(val.trim())) {
+                                            return {value: parseInt(val.trim()), selector: 'fallback', attribute: attrs[l]};
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            return null;
+                            """
+                            
+                            js_result = self.driver.execute_script(js_script)
+                            if js_result and js_result.get('value'):
+                                result_count = js_result['value']
+                                successful_strategy = f"{strategy['name']} - {js_result.get('selector')} with {js_result.get('attribute')}"
+                        
+                        if result_count:
+                            print(f"Successfully found result count: {result_count} using {successful_strategy}")
                             break
-                    except:
+                            
+                    except Exception as e:
+                        print(f"Strategy '{strategy['name']}' failed: {str(e)}")
                         continue
                 
-                if not count_element:
-                    raise NoSuchElementException("Could not find the result count element with any selector")
+                if result_count:
+                    # Validate the result count makes sense
+                    if result_count > 0 and result_count < 10000000:  # Reasonable upper bound
+                        self.result_count = result_count
+                        return self.result_count
+                    else:
+                        print(f"Result count {result_count} seems unreasonable, treating as invalid")
+                        result_count = None
                 
-                # Check for data attribute or try to get text content
-                result_count = None
-                try:
-                    # Try getting the attribute
-                    result_count = count_element.get_attribute("data-actualresultscount")
-                    if not result_count:
-                        # Try getting text directly
-                        result_count = count_element.text
-                        # Extract numbers from text if needed
-                        import re
-                        numbers = re.findall(r'\d+', result_count)
-                        if numbers:
-                            result_count = numbers[0]
-                except:
-                    # Maybe try JavaScript as a last resort
-                    result_count = self.driver.execute_script(
-                        "return arguments[0].getAttribute('data-actualresultscount') || arguments[0].textContent", 
-                        count_element
-                    )
-                
-                if result_count and result_count.strip():
-                    self.result_count = int(result_count)
-                    return self.result_count
-                else:
-                    print("Empty result count, waiting and retrying...")
-                    time.sleep(10)
-                    continue
-                    
-            except (TimeoutException, NoSuchElementException, StaleElementReferenceException) as e:
-                print(f"Attempt {attempt + 1} failed: {str(e)}")
+                if result_count is None:
+                    if attempt < max_attempts - 1:
+                        print(f"No result count found on attempt {attempt + 1}, waiting and retrying...")
+                        time.sleep(10 + (attempt * 5))  # Increasing wait time for large result sets
+                        
+                        # Try refreshing the page as a last resort
+                        if attempt == max_attempts - 2:
+                            print("Refreshing page before final attempt...")
+                            self.driver.refresh()
+                            time.sleep(8)
+                    else:
+                        print("Max attempts reached. Could not retrieve result count.")
+                        if self.download_type == 'excel':
+                            self.status_data.loc[index, 'basin_count'] = None
+                        else:
+                            self.status_data.loc[index, 'total_count'] = None
+                        self.status_data.to_csv(self.status_file)
+                        return None
+                        
+            except Exception as e:
+                print(f"Attempt {attempt + 1} failed with exception: {str(e)}")
                 if attempt < max_attempts - 1:
-                    print("Refreshing page and retrying...")
-                    self.driver.refresh()
-                    time.sleep(8)  # Increased wait time after refresh
+                    print("Waiting before retry...")
+                    time.sleep(10 + (attempt * 5))
+                    # Try refreshing if we're getting consistent errors
+                    if attempt > 0:
+                        print("Refreshing page due to repeated errors...")
+                        self.driver.refresh()
+                        time.sleep(8)
                 else:
-                    print("Max attempts reached. Could not retrieve result count.")
+                    print("Max attempts reached due to exceptions.")
                     if self.download_type == 'excel':
                         self.status_data.loc[index, 'basin_count'] = None
                     else:
                         self.status_data.loc[index, 'total_count'] = None
                     self.status_data.to_csv(self.status_file)
                     return None
-            except ValueError as e:
-                print(f"Error converting result count to integer: {str(e)}")
-                if self.download_type == 'excel':
-                    self.status_data.loc[index, 'basin_count'] = None
-                else:
-                    self.status_data.loc[index, 'total_count'] = None
-                self.status_data.to_csv(self.status_file)
-                return None
+        
+        return None
                 
     def result_count_to_df(self, index):
                
