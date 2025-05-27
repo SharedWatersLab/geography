@@ -887,11 +887,12 @@ class Download:
     def wait_for_download(self):
 
         start_time = time.time()
+        download_timeout = 240
 
         try:
             # First, wait for UI indication that download started
             print("Waiting for download to start...")
-            WebDriverWait(self.driver, 120).until(
+            WebDriverWait(self.driver, download_timeout).until(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
             print("Download started, processing...")
