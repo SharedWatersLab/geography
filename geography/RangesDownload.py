@@ -74,6 +74,7 @@ class dialog:
 
                 except (NoSuchElementException, TimeoutException):
                     if attempt < max_retries - 1:
+                        time.sleep(2)
                         print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
                         time.sleep(10)
                         self.download._click_from_xpath(self.open_download_options)  # Try opening the download options again

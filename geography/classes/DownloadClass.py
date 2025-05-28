@@ -357,13 +357,7 @@ class Download:
         self.sort_by_date()
 
     def get_result_count(self, index, max_attempts=3):
-        """
-        Resilient function to get result count that handles:
-        - Attribute name variations (with/without spaces)
-        - Multiple possible element structures  
-        - Timing issues with large result sets
-        - Future website changes
-        """
+
         
         for attempt in range(max_attempts):
             try:
@@ -383,7 +377,7 @@ class Download:
                         lambda d: d.execute_script("return jQuery.active == 0") if d.execute_script("return typeof jQuery !== 'undefined'") else True
                     )
                 except:
-                    pass  # jQuery might not be available
+                    pass  
                 
                 # Multiple strategies to find the result count element
                 strategies = [
@@ -498,53 +492,7 @@ class Download:
                                 except:
                                     continue
                         
-                        elif strategy["method"] == "javascript":
-                            # Use JavaScript to search for the element and attribute
-                            js_script = """
-                            // Try multiple approaches to find the result count
-                            var possibleSelectors = [
-                                'li.active[data-actualresultscount]',
-                                'li.active[ data-actualresultscount]',
-                                'li[class*="active"][data-actualresultscount]',
-                                'li[class*="active"][ data-actualresultscount]'
-                            ];
-                            
-                            for (var i = 0; i < possibleSelectors.length; i++) {
-                                var element = document.querySelector(possibleSelectors[i]);
-                                if (element) {
-                                    var attrs = ['data-actualresultscount', ' data-actualresultscount'];
-                                    for (var j = 0; j < attrs.length; j++) {
-                                        var value = element.getAttribute(attrs[j]);
-                                        if (value && value.trim() && !isNaN(value.trim())) {
-                                            return {value: parseInt(value.trim()), selector: possibleSelectors[i], attribute: attrs[j]};
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Fallback: search all elements with any data attribute containing 'result'
-                            var allElements = document.querySelectorAll('[data*="result"], [class*="result"], [id*="result"]');
-                            for (var k = 0; k < allElements.length; k++) {
-                                var el = allElements[k];
-                                var attrs = el.getAttributeNames();
-                                for (var l = 0; l < attrs.length; l++) {
-                                    if (attrs[l].includes('result') || attrs[l].includes('count')) {
-                                        var val = el.getAttribute(attrs[l]);
-                                        if (val && val.trim() && !isNaN(val.trim())) {
-                                            return {value: parseInt(val.trim()), selector: 'fallback', attribute: attrs[l]};
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            return null;
-                            """
-                            
-                            js_result = self.driver.execute_script(js_script)
-                            if js_result and js_result.get('value'):
-                                result_count = js_result['value']
-                                successful_strategy = f"{strategy['name']} - {js_result.get('selector')} with {js_result.get('attribute')}"
-                        
+    
                         if result_count:
                             print(f"Successfully found result count: {result_count} using {successful_strategy}")
                             break
@@ -552,15 +500,7 @@ class Download:
                     except Exception as e:
                         print(f"Strategy '{strategy['name']}' failed: {str(e)}")
                         continue
-                
-                if result_count:
-                    # Validate the result count makes sense
-                    if result_count > 0 and result_count < 10000000:  # Reasonable upper bound
-                        self.result_count = result_count
-                        return self.result_count
-                    else:
-                        print(f"Result count {result_count} seems unreasonable, treating as invalid")
-                        result_count = None
+
                 
                 if result_count is None:
                     if attempt < max_attempts - 1:
