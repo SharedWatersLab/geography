@@ -28,6 +28,15 @@ import os
 from classes.LoginClass import Login
 from classes.NoLinkClass import NoLinkClass
 
+
+class DownloadNeverStartedException(Exception):
+    """Exception raised when download popup never appears"""
+    pass
+
+class DownloadTimeoutException(Exception):
+    """Exception raised when download starts but doesn't complete in time"""
+    pass
+
 class ResetRequiredException(Exception):
     pass
 
@@ -356,12 +365,19 @@ class Download:
         self.group_duplicates()
         self.sort_by_date()
 
-    def get_result_count(self, index, max_attempts=3):
-
+    def get_result_count(self, index, max_attempts=4):
+        """
+        Resilient function to get result count that handles:
+        - Attribute name variations (with/without spaces)
+        - Multiple possible element structures  
+        - Timing issues with large result sets
+        - Future website changes
+        """
         
         for attempt in range(max_attempts):
             try:
-                print(f"Attempt {attempt + 1} to get result count...")
+                #time.sleep(2)
+                #print(f"Attempt {attempt + 1} to get result count...")
                 
                 # Wait for page to be fully loaded and stable
                 WebDriverWait(self.driver, self.timeout).until(
@@ -377,49 +393,27 @@ class Download:
                         lambda d: d.execute_script("return jQuery.active == 0") if d.execute_script("return typeof jQuery !== 'undefined'") else True
                     )
                 except:
-                    pass  
+                    pass  # jQuery might not be available
                 
-                # Multiple strategies to find the result count element
+                # Focus on the core strategies that matter for the data-actualresultscount attribute
                 strategies = [
-                    # Strategy 1: Original selector with various attribute name possibilities
+                    # Strategy 1: Original specific selector with attribute variations
                     {
-                        "name": "Original CSS with attribute variations",
+                        "name": "Original CSS selector",
                         "method": "css_with_attributes",
                         "selector": "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active",
                         "attributes": ["data-actualresultscount", " data-actualresultscount", "data-actualresultscount ", " data-actualresultscount "]
                     },
                     
-                    # Strategy 2: More generic CSS selectors
+                    # Strategy 2: More generic CSS selector
                     {
-                        "name": "Generic CSS selectors",
+                        "name": "Generic li.active selector",
                         "method": "css_with_attributes", 
                         "selector": "li.active",
                         "attributes": ["data-actualresultscount", " data-actualresultscount", "data-actualresultscount ", " data-actualresultscount "]
                     },
                     
-                    # Strategy 3: XPath with attribute variations
-                    {
-                        "name": "XPath with attribute checks",
-                        "method": "xpath_attributes",
-                        "selectors": [
-                            "//li[contains(@class, 'active') and (@data-actualresultscount or @*[name()=' data-actualresultscount'])]",
-                            "//li[@class='active' and (@data-actualresultscount or @*[name()=' data-actualresultscount'])]",
-                            "//ul/li[contains(@class, 'active')][@data-actualresultscount or @*[name()=' data-actualresultscount']]"
-                        ]
-                    },
-                    
-                    # Strategy 4: Find by text content patterns
-                    {
-                        "name": "Text content extraction",
-                        "method": "text_patterns",
-                        "selectors": [
-                            "//li[contains(@class, 'active')]",
-                            "//*[contains(@class, 'result') and contains(@class, 'count')]",
-                            "//*[contains(text(), 'result') or contains(text(), 'Result')]"
-                        ]
-                    },
-                    
-                    # Strategy 5: JavaScript-based extraction
+                    # Strategy 3: JavaScript-based extraction (most reliable for dynamic content)
                     {
                         "name": "JavaScript extraction",
                         "method": "javascript"
@@ -447,73 +441,96 @@ class Download:
                                     if result_count:
                                         break
                         
-                        elif strategy["method"] == "xpath_attributes":
-                            for selector in strategy["selectors"]:
-                                try:
-                                    elements = self.driver.find_elements(By.XPATH, selector)
-                                    for element in elements:
-                                        if element.is_displayed():
-                                            # Try different attribute name variations
-                                            for attr in ["data-actualresultscount", " data-actualresultscount"]:
-                                                try:
-                                                    value = element.get_attribute(attr)
-                                                    if value and value.strip() and value.strip().isdigit():
-                                                        result_count = int(value.strip())
-                                                        successful_strategy = f"{strategy['name']} - {selector}"
-                                                        break
-                                                except:
-                                                    continue
-                                            if result_count:
-                                                break
-                                    if result_count:
-                                        break
-                                except:
-                                    continue
+                        elif strategy["method"] == "javascript":
+                            # Use JavaScript to search for the element and attribute
+                            js_script = """
+                            // Function to wait for the attribute to be populated
+                            function waitForResultCount(maxWait = 15000) {
+                                return new Promise((resolve) => {
+                                    const startTime = Date.now();
+                                    
+                                    function checkForCount() {
+                                        // Try multiple approaches to find the result count
+                                        var possibleSelectors = [
+                                            '#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active',
+                                            'li.active',
+                                            'li[class*="active"]'
+                                        ];
+                                        
+                                        for (var i = 0; i < possibleSelectors.length; i++) {
+                                            var element = document.querySelector(possibleSelectors[i]);
+                                            if (element) {
+                                                var attrs = ['data-actualresultscount', ' data-actualresultscount', 'data-actualresultscount ', ' data-actualresultscount '];
+                                                for (var j = 0; j < attrs.length; j++) {
+                                                    var value = element.getAttribute(attrs[j]);
+                                                    if (value && value.trim() && !isNaN(parseInt(value.trim()))) {
+                                                        resolve({
+                                                            value: parseInt(value.trim()), 
+                                                            selector: possibleSelectors[i], 
+                                                            attribute: attrs[j]
+                                                        });
+                                                        return;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        
+                                        // If not found and we haven't exceeded max wait time, try again
+                                        if (Date.now() - startTime < maxWait) {
+                                            setTimeout(checkForCount, 500);
+                                        } else {
+                                            resolve(null);
+                                        }
+                                    }
+                                    
+                                    checkForCount();
+                                });
+                            }
+                            
+                            return waitForResultCount();
+                            """
+                            
+                            js_result = self.driver.execute_script(js_script)
+                            if js_result and js_result.get('value'):
+                                result_count = js_result['value']
+                                successful_strategy = f"{strategy['name']} - {js_result.get('selector')} with attribute '{js_result.get('attribute')}'"
                         
-                        elif strategy["method"] == "text_patterns":
-                            for selector in strategy["selectors"]:
-                                try:
-                                    elements = self.driver.find_elements(By.XPATH, selector)
-                                    for element in elements:
-                                        if element.is_displayed():
-                                            text = element.text.strip()
-                                            # Look for numbers in the text
-                                            import re
-                                            numbers = re.findall(r'(\d{1,3}(?:,\d{3})*|\d+)', text)
-                                            if numbers:
-                                                # Take the largest number found (likely the result count)
-                                                largest_num = max([int(num.replace(',', '')) for num in numbers])
-                                                if largest_num > 0:
-                                                    result_count = largest_num
-                                                    successful_strategy = f"{strategy['name']} - text extraction: '{text[:50]}...'"
-                                                    break
-                                    if result_count:
-                                        break
-                                except:
-                                    continue
-                        
-    
                         if result_count:
                             print(f"Successfully found result count: {result_count} using {successful_strategy}")
                             break
                             
                     except Exception as e:
-                        print(f"Strategy '{strategy['name']}' failed: {str(e)}")
+                        print(f"Strategy '{strategy['name']}' failed")
                         continue
-
+                
+                if result_count:
+                    # Validate the result count makes sense (remove upper bound for large datasets)
+                    if result_count > 0:
+                        self.result_count = result_count
+                        print(f"Final result count: {result_count:,}")  # Format with commas for readability
+                        return self.result_count
+                    else:
+                        print(f"Result count {result_count} is not positive, treating as invalid")
+                        result_count = None
                 
                 if result_count is None:
                     if attempt < max_attempts - 1:
-                        print(f"No result count found on attempt {attempt + 1}, waiting and retrying...")
-                        time.sleep(10 + (attempt * 5))  # Increasing wait time for large result sets
-                        
-                        # Try refreshing the page as a last resort
-                        if attempt == max_attempts - 2:
-                            print("Refreshing page before final attempt...")
+                        if attempt == 0:
+                            # First retry: just wait longer (common case)
+                            print(f"No result count found on attempt {attempt + 1}, waiting longer and retrying...")
+                            time.sleep(15)  # Longer wait for large result sets
+                        elif attempt == 1:
+                            # Second retry: refresh the page
+                            print("Refreshing page to reload result count data...")
                             self.driver.refresh()
-                            time.sleep(8)
+                            time.sleep(10)  # Wait for page to reload
+                        else:
+                            # Final retry: longer wait after refresh
+                            print("Final attempt: waiting for backend processing to complete...")
+                            time.sleep(20)
                     else:
-                        print("Max attempts reached. Could not retrieve result count.")
+                        print("Could not retrieve result count after all attempts.")
+                        print("The element may exist but the data-actualresultscount attribute is not being populated.")
                         if self.download_type == 'excel':
                             self.status_data.loc[index, 'basin_count'] = None
                         else:
@@ -522,17 +539,18 @@ class Download:
                         return None
                         
             except Exception as e:
-                print(f"Attempt {attempt + 1} failed with exception: {str(e)}")
+                print(f"Attempt {attempt + 1} to get result count failed")
                 if attempt < max_attempts - 1:
-                    print("Waiting before retry...")
-                    time.sleep(10 + (attempt * 5))
-                    # Try refreshing if we're getting consistent errors
-                    if attempt > 0:
-                        print("Refreshing page due to repeated errors...")
+                    if attempt == 0:
+                        print("First exception, waiting and retrying...")
+                        time.sleep(10)
+                    else:
+                        print("Exception after previous attempts, refreshing page...")
                         self.driver.refresh()
-                        time.sleep(8)
+                        time.sleep(10)
                 else:
                     print("Max attempts reached due to exceptions.")
+                    print("Could not retrieve result count - the data-actualresultscount attribute may not be populating.")
                     if self.download_type == 'excel':
                         self.status_data.loc[index, 'basin_count'] = None
                     else:
@@ -735,49 +753,47 @@ class Download:
             self._send_keys_from_xpath(self.result_range_field, self.result_range_string)
             time.sleep(2)
 
-    def DownloadDialog(self, index):
-        open_download_options = "//button[@class='has_tooltip' and @data-action='downloadopt']"
-        self._click_from_xpath(open_download_options)
-        time.sleep(5) 
-
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                # Wait for the element to be clickable
-                self.result_range_field = "//input[@id='SelectedRange']"
-
-                # check if we're in the dialog box by looking for clickable field button
-                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, self.result_range_field)))
-                                                     
-                break  # Exit the loop if successful
-
-            except (NoSuchElementException, TimeoutException):
-                if attempt < max_retries - 1:
-                    print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
-                    time.sleep(10)
-                    self._click_from_xpath(open_download_options)  # Try opening the download options again
-                    time.sleep(5)
-                else:
-                    print("download limit banner appeared, need to reset login")
-                    self.reset_needed = True
-                    raise ResetRequiredException()
-
-        if self.download_type == 'excel':
-            self.excelDownloadOptions(index)
-
-        else:
-            self.pdfDownloadOptions(index)
-        
-        # rename file name
-        self.filename_field = "//input[@type='text' and @id='FileName']"
-        self._send_keys_from_xpath(self.filename_field, (Keys.COMMAND, "a"))
-        self.filename = self.get_filename(index)
-        print(f'changing filename to {self.filename}')
-        self._send_keys_from_xpath(self.filename_field, self.filename)
-        print(f"{self.download_folder_temp}")
-        self.check_clear_downloads(index)
-        time.sleep(5)
-        self.click_download(index)
+    def check_for_download_restriction(self):
+        """Monitor for the yellow download restriction banner that appears briefly"""
+        try:
+            # Create a MutationObserver using JavaScript to watch for the banner
+            script = """
+            return new Promise((resolve) => {
+                const observer = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                        for (const node of mutation.addedNodes) {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                // Look for any element that might contain error text
+                                const text = node.textContent.toLowerCase();
+                                if (text.includes("can't download") || 
+                                    text.includes("cannot download") ||
+                                    text.includes("download limit") ||
+                                    text.includes("restricted")) {
+                                    observer.disconnect();
+                                    resolve({found: true, message: text});
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Watch the entire document for changes
+                observer.observe(document.body, { childList: true, subtree: true });
+                
+                // Resolve after 5 seconds if nothing is found (shorter for retries)
+                setTimeout(() => {
+                    observer.disconnect();
+                    resolve({found: false});
+                }, 5000);
+            });
+            """
+            result = self.driver.execute_script(script)
+            return result
+        except Exception as e:
+            print(f"Error checking for download limit banner")
+            return {"found": False}
+     
 
     def check_clear_downloads(self, index): # for a manual check
         #if file in default_download contains the name "Files (" move it to a folder
@@ -821,42 +837,53 @@ class Download:
             return True
 
         except Exception as e:
-            print(f"Error processing download for index {index}: {str(e)}")
+            print(f"Error processing download for index {index}")
             return False  
 
-    def wait_for_download(self):
-
+    def wait_for_download(self, download_start_timeout=120, download_complete_timeout=400):
+        """Wait for download to complete with better timeout handling"""
         start_time = time.time()
-        download_timeout = 240
-
+        
         try:
             # First, wait for UI indication that download started
             print("Waiting for download to start...")
-            WebDriverWait(self.driver, download_timeout).until(
+            WebDriverWait(self.driver, download_start_timeout).until(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
             print("Download started, processing...")
             
+        except TimeoutException as e:
+            elapsed_time = time.time() - start_time
+            print(f"Download popup never appeared after {elapsed_time:.2f} seconds")
+            raise DownloadNeverStartedException(
+                f"Download failed to start within {download_start_timeout} seconds"
+            )
+        
+        try:
             # Wait for UI indication that browser finished
-            WebDriverWait(self.driver, 400).until_not(
+            WebDriverWait(self.driver, download_complete_timeout).until_not(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
             print("Browser reports download complete!")
-
+            
             end_time = time.time()
             elapsed_time = end_time - start_time
             print(f"Download completed in {elapsed_time:.2f} seconds")
             return True
             
+        except TimeoutException as e:
+            elapsed_time = time.time() - start_time
+            print(f"Download started but didn't complete within {download_complete_timeout} seconds")
+            print(f"Total elapsed time: {elapsed_time:.2f} seconds")
+            raise DownloadTimeoutException(
+                f"Download timed out after {elapsed_time:.2f} seconds (started but didn't finish)"
+            )
+            
         except Exception as e:
-            print(f"Error: {str(e)}")
-            if "presence_of_element_located" in str(e):
-                print("Download popup never appeared")
-            else:
-                #print("Download didn't complete within the timeout period")
-                elapsed_time = time.time() - start_time
-                print(f"Download timed out after {elapsed_time:.2f} seconds")
-                return False
+            elapsed_time = time.time() - start_time
+            print(f"Unexpected error during download: {str(e)}")
+            print(f"Failed after {elapsed_time:.2f} seconds")
+            raise  # Re-raise the unexpected exception
 
     def move_file(self, index):
         self.filename = self.get_filename(index)
