@@ -29,13 +29,13 @@ from classes.LoginClass import Login
 from classes.NoLinkClass import NoLinkClass
 
 
-class DownloadNeverStartedException(Exception):
-    """Exception raised when download popup never appears"""
-    pass
+# class DownloadNeverStartedException(Exception):
+#     """Exception raised when download popup never appears"""
+#     pass
 
-class DownloadTimeoutException(Exception):
-    """Exception raised when download starts but doesn't complete in time"""
-    pass
+# class DownloadTimeoutException(Exception):
+#     """Exception raised when download starts but doesn't complete in time"""
+#     pass
 
 class ResetRequiredException(Exception):
     pass
@@ -497,7 +497,7 @@ class Download:
                         
                         if result_count:
                             print(f"Successfully found result count: {result_count} using {successful_strategy}")
-                            break
+                            return self.result_count
                             
                     except Exception as e:
                         print(f"Strategy '{strategy['name']}' failed")
@@ -531,11 +531,11 @@ class Download:
                     else:
                         print("Could not retrieve result count after all attempts.")
                         print("The element may exist but the data-actualresultscount attribute is not being populated.")
-                        if self.download_type == 'excel':
-                            self.status_data.loc[index, 'basin_count'] = None
-                        else:
-                            self.status_data.loc[index, 'total_count'] = None
-                        self.status_data.to_csv(self.status_file)
+                        # if self.download_type == 'excel':
+                        #     self.status_data.loc[index, 'basin_count'] = None
+                        # else:
+                        #     self.status_data.loc[index, 'total_count'] = None
+                        # self.status_data.to_csv(self.status_file)
                         return None
                         
             except Exception as e:
@@ -551,11 +551,11 @@ class Download:
                 else:
                     print("Max attempts reached due to exceptions.")
                     print("Could not retrieve result count - the data-actualresultscount attribute may not be populating.")
-                    if self.download_type == 'excel':
-                        self.status_data.loc[index, 'basin_count'] = None
-                    else:
-                        self.status_data.loc[index, 'total_count'] = None
-                    self.status_data.to_csv(self.status_file)
+                    # if self.download_type == 'excel':
+                    #     self.status_data.loc[index, 'basin_count'] = None
+                    # else:
+                    #     self.status_data.loc[index, 'total_count'] = None
+                    # self.status_data.to_csv(self.status_file)
                     return None
         
         return None
@@ -855,9 +855,9 @@ class Download:
         except TimeoutException as e:
             elapsed_time = time.time() - start_time
             print(f"Download popup never appeared after {elapsed_time:.2f} seconds")
-            raise DownloadNeverStartedException(
-                f"Download failed to start within {download_start_timeout} seconds"
-            )
+            # raise DownloadNeverStartedException(
+            #     f"Download failed to start within {download_start_timeout} seconds"
+            # )
         
         try:
             # Wait for UI indication that browser finished
@@ -875,9 +875,9 @@ class Download:
             elapsed_time = time.time() - start_time
             print(f"Download started but didn't complete within {download_complete_timeout} seconds")
             print(f"Total elapsed time: {elapsed_time:.2f} seconds")
-            raise DownloadTimeoutException(
-                f"Download timed out after {elapsed_time:.2f} seconds (started but didn't finish)"
-            )
+            # raise DownloadTimeoutException(
+            #     f"Download timed out after {elapsed_time:.2f} seconds (started but didn't finish)"
+            # )
             
         except Exception as e:
             elapsed_time = time.time() - start_time
