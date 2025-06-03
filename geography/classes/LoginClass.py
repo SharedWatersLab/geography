@@ -23,12 +23,11 @@ import time
 import getpass
 from pathlib import Path
 
-# I don't know if I need this????
+# this all just to get the paths correct for the imports
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-# and should it be in like all the classes?
 
 from driverTest import SetupDriver  # noqa: E402
 

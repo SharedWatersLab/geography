@@ -13,9 +13,9 @@ basin = st.selectbox("Select basin code:", basins)
 
 if st.button("Start Download"):
     if uname:
-        paths, current_user = get_user(basin, uname, "pdf")
+        paths, username = get_user(basin, uname)
         with st.spinner("Downloading..."):
-            full_process(current_user, paths)
-        st.success("Download completed successfully!")
+            full_process(basin, username, paths) 
+        #st.success("Download completed successfully!")
     else:
         st.error("Please enter a username.") 
