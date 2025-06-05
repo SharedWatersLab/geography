@@ -22,54 +22,31 @@ import pandas as pd
 import time
 import sys
 import os
-
-
+import re
 
 from classes.LoginClass import Login
-from classes.NoLinkClass import NoLinkClass
+from classes.SearchClass import Search
 
 
-# class DownloadNeverStartedException(Exception):
-#     """Exception raised when download popup never appears"""
-#     pass
-
-# class DownloadTimeoutException(Exception):
-#     """Exception raised when download starts but doesn't complete in time"""
-#     pass
-
-class ResetRequiredException(Exception):
-    pass
-
-class SkipRowException(Exception):
-    pass
-
-class SingleResultException(Exception):
-    pass
+class DownloadFailedException(Exception):
+    def __init__(self, message="Download persistently failing to complete"):
+        self.message = message
+        super().__init__(self.message)
 
 class Download:
 
-    def __init__(self, driver, basin_code, user_name, index, login, nlc, download_type, download_folder: str, download_folder_temp, status_file, finished, url = None, timeout = 20):
+    def __init__(self, driver, basin_code, username, login, search, download_folder: str, download_folder_temp, finished, url=None, timeout=20):
+
         self.driver = driver
         self.basin_code = basin_code
-        self.user_name = user_name
-        self.index = index
+        self.username = username
         self.login = login
-        self.nlc = nlc
-        self.download_type = download_type
-        self.status_file = status_file
+        self.search = search
         self.finished = finished 
         self.url = url
         self.timeout = timeout
         self.download_folder = download_folder
-        self.download_folder_temp = download_folder_temp 
-        
-        #Set Basin Status CSV File 
-        if os.path.exists(status_file):
-            self.status_data = pd.read_csv(status_file, index_col=0)
-        else:
-            df = pd.DataFrame()
-            df.to_csv(status_file)
-            self.status_data = pd.read_csv(status_file, index_col=0)
+        self.download_folder_temp = download_folder_temp
 
     
     def _click_from_xpath(self, xpath):
@@ -129,95 +106,6 @@ class Download:
         
         # If no format worked, raise an error
         raise ValueError(f"Unable to parse date string: {date_string}")
-        
-    def set_date_range(self, index):
-
-        #START_DATE AND END_DATE get established here
-        row = self.status_data.index.get_loc(index)
-        start_date_column = self.status_data.columns.get_loc('start_date')
-        end_date_column = self.status_data.columns.get_loc('end_date')
-
-        self.start_date_raw = self.status_data.iloc[row, start_date_column]
-        self.end_date_raw = self.status_data.iloc[row, end_date_column]
-
-        try:
-            start_date_str = self.parse_date(self.start_date_raw)
-            end_date_str = self.parse_date(self.end_date_raw)
-        except ValueError as e:
-            print(f"Error parsing dates for index {index}: {e}")
-            return
-
-        self.start_date = start_date_str.strftime('%m/%d/%Y')
-        self.end_date = end_date_str.strftime('%m/%d/%Y')
-
-        print(f"Setting the date range from {self.start_date} to {self.end_date}")
-        time.sleep(1)
-              
-        # these are css selectors
-        #self.min_date_field = '#refine > div.supplemental.timeline > div.date-form > div.min-picker > input'
-        #self.max_date_field = '#refine > div.supplemental.timeline > div.date-form > div.max-picker > input'
-        
-        # trying with xpaths instead of css selector
-        self.min_date_field = "//input[@class='min-val' and @aria-label='Input Min Date']"
-        self.max_date_field = "//input[@class='max-val' and @aria-label='Input Max Date']"
-        
-        try:
-            self._click_from_xpath(self.min_date_field)
-            
-        except NoSuchElementException:
-            print('timeline closed or frozen')
-            self.open_timeline()
-            time.sleep(5)
-
-        # Clear out the default min date
-        time.sleep(5)
-        self.select_all = Keys.COMMAND, "a"
-        #self._send_keys_from_css(min_date_field, select_all); 
-
-        # try with xpath
-        self._send_keys_from_xpath(self.min_date_field, self.select_all); 
-        # Put the new min date in 
-        self._send_keys_from_xpath(self.min_date_field, self.start_date)
-        print (f"Min date set to {self.start_date}")
-        time.sleep(3)
-
-        # Clear out the default max date 
-        self._send_keys_from_xpath(self.max_date_field, self.select_all); 
-        # Put the new max date in 
-        self._send_keys_from_xpath(self.max_date_field, self.end_date)
-        print (f"Max date set to {self.end_date}")
-        time.sleep(3)
-
-        timeline_ok_button = '#refine > div.supplemental.timeline > div.date-form > button'
-
-        try:
-            self._click_from_css(timeline_ok_button)
-            time.sleep(10) 
-        except NoSuchElementException:
-            self.driver.refresh()
-            print (f"resetting dates to default")
-            raise SingleResultException
-        
-    def check_datefilter(self):
-        self.timeline_reset_button = '#sidebar > div.search-controls > div.filter-container.filterpanel-target > ul > li:nth-child(2) > button > span'
-        try:
-            WebDriverWait(self.driver, 20).until(EC.visibility_of_element_located((
-                By.CSS_SELECTOR, self.timeline_reset_button)))
-            #print("results already have a timeline filter applied")
-            return True
-        except TimeoutException:
-            #print("no timeline filter applied to results")
-            return False
-
-    def timeline_reset(self): 
-        
-        if self.check_datefilter():
-            self._click_from_css(self.timeline_reset_button)
-            print("Cleared previous timeline filter")
-            time.sleep(10)
-        else:
-            #print("Default time filter")
-            self.open_timeline()
 
     def group_duplicates(self):
         actions_dropdown_xpath = "//button[@id='resultlistactionmenubuttonhc-yk' and text()='Actions']"
@@ -230,14 +118,6 @@ class Download:
         time.sleep(10)
 
     def handle_popups(self, max_popups=5):
-
-        # analytics
-        # //button[@class='_pendo-close-guide' and @aria-label='Close' and contains(@id, 'pendo-close-guide')]"
-        # pdf one (probably temporary)
-        # <button aria-label="Close" id="pendo-close-guide-de8004c4" class="_pendo-close-guide"
-        # ai one (maybe also temp? more an ad... not really in the way)
-        #button aria-label="Close" id="pendo-close-guide-e1efd0e6" class="_pendo-close-guide"
-    
         # Counter to prevent infinite loops
         popups_closed = 0
         
@@ -335,6 +215,7 @@ class Download:
                 
                 print("Selected 'Date (oldest-newest)' option")
                 time.sleep(5)  # Wait for the page to update
+
                 return  # Success, exit the function
                 
             except StaleElementReferenceException:
@@ -360,12 +241,11 @@ class Download:
         
         print("Failed to sort by date after multiple attempts")
 
-
     def DownloadSetup(self):
         self.group_duplicates()
         self.sort_by_date()
 
-    def get_result_count(self, index, max_attempts=4):
+    def get_result_count(self, max_attempts=4):
         """
         Resilient function to get result count that handles:
         - Attribute name variations (with/without spaces)
@@ -373,14 +253,15 @@ class Download:
         - Timing issues with large result sets
         - Future website changes
         """
-        
-        for attempt in range(max_attempts):
+        # doubled all timeouts in this method
+
+        for attempt in range(max_attempts): 
             try:
                 #time.sleep(2)
                 #print(f"Attempt {attempt + 1} to get result count...")
                 
                 # Wait for page to be fully loaded and stable
-                WebDriverWait(self.driver, self.timeout).until(
+                WebDriverWait(self.driver, 40).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
                 
@@ -389,7 +270,7 @@ class Download:
                 
                 # Try to wait for network activity to settle (helps with large result sets)
                 try:
-                    WebDriverWait(self.driver, 10).until(
+                    WebDriverWait(self.driver, 20).until(
                         lambda d: d.execute_script("return jQuery.active == 0") if d.execute_script("return typeof jQuery !== 'undefined'") else True
                     )
                 except:
@@ -497,7 +378,8 @@ class Download:
                         
                         if result_count:
                             print(f"Successfully found result count: {result_count} using {successful_strategy}")
-                            return self.result_count
+                            self.result_count = result_count
+                            return result_count
                             
                     except Exception as e:
                         print(f"Strategy '{strategy['name']}' failed")
@@ -518,24 +400,19 @@ class Download:
                         if attempt == 0:
                             # First retry: just wait longer (common case)
                             print(f"No result count found on attempt {attempt + 1}, waiting longer and retrying...")
-                            time.sleep(15)  # Longer wait for large result sets
+                            time.sleep(30)  # Longer wait for large result sets
                         elif attempt == 1:
                             # Second retry: refresh the page
                             print("Refreshing page to reload result count data...")
                             self.driver.refresh()
-                            time.sleep(10)  # Wait for page to reload
+                            time.sleep(30)  # Wait for page to reload
                         else:
                             # Final retry: longer wait after refresh
                             print("Final attempt: waiting for backend processing to complete...")
-                            time.sleep(20)
+                            time.sleep(60)
                     else:
                         print("Could not retrieve result count after all attempts.")
                         print("The element may exist but the data-actualresultscount attribute is not being populated.")
-                        # if self.download_type == 'excel':
-                        #     self.status_data.loc[index, 'basin_count'] = None
-                        # else:
-                        #     self.status_data.loc[index, 'total_count'] = None
-                        # self.status_data.to_csv(self.status_file)
                         return None
                         
             except Exception as e:
@@ -551,208 +428,48 @@ class Download:
                 else:
                     print("Max attempts reached due to exceptions.")
                     print("Could not retrieve result count - the data-actualresultscount attribute may not be populating.")
-                    # if self.download_type == 'excel':
-                    #     self.status_data.loc[index, 'basin_count'] = None
-                    # else:
-                    #     self.status_data.loc[index, 'total_count'] = None
-                    # self.status_data.to_csv(self.status_file)
                     return None
         
         return None
-                
-    def result_count_to_df(self, index):
-               
-        if self.download_type == 'excel':
-            # Update status data and return result
-            self.status_data.loc[index, 'basin_count'] = self.result_count
-            self.status_data.to_csv(self.status_file)
-            print(f"row {index} updated with {self.result_count} results in date range")
-            return self.result_count
 
-        else: #if self.download_type == 'pdf':
-            self.start_count = self.status_data.loc[index, 'start_count']
-            self.stop_count = self.status_data.loc[index, 'stop_count']
+    # def reset(self):
+    #     sign_in_button = "//button[@id='SignInRegisterBisNexis']"
+    #     try:
+    #         self._click_from_xpath(sign_in_button)
+    #         print("logging out")
+    #     except ElementClickInterceptedException:
+    #         find_sign_in = self.driver.find_element_by_xpath(sign_in_button)
+    #         self.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
+    #     self.driver.delete_all_cookies()
+    #     print("deleting cookies before logging in again")
+    #     time.sleep(3)
+    #     self.login._init_login()
+    #     self.search.search_process(start_date, end_date)
+    #     time.sleep(5)
+    #     self.DownloadSetup()
 
-            # if the range of results exceeds results to be downloaded in this row
-            if self.result_count > self.stop_count:
-                self.file_count = int((self.stop_count - self.start_count) + 1)
-                self.status_data.loc[index, 'total_count'] = self.file_count
-                print(f"row {index} updated with {self.file_count} results to be downloaded")
-                self.status_data.to_csv(self.status_file)
-                
-            else: # if the results end in this row / result_count is lower than stop_count
-                # update end count
-                self.file_count = int((self.result_count - self.start_count) + 1)
-                self.status_data.loc[index, 'total_count'] = self.file_count
-                #self.status_data.loc[index, 'stop_count'] = self.result_count
-                print(f"row {index} updated with {self.file_count} results to be downloaded")
-                self.status_data.to_csv(self.status_file)
-
-                if self.result_count < 501:
-                    self.next_row = index + 1
-                    print(f"row {index} includes all results in date range")
-                    print(f"updating row {self.next_row} status to automatically skip")
-                    self.status_data.loc[self.next_row, 'total_count'] = 0
-                    self.status_data.loc[self.next_row, 'finished'] = 1
-                    #self.status_data.loc[next_row, 'start_count'] = 0
-                    #self.status_data.loc[next_row, 'stop_count'] = 0
-                    self.status_data.to_csv(self.status_file)
-
-                else:
-                    pass
-
-    
-    def result_count_handling(self, index):
-
-        if self.result_count < 1000:
-            self.result_count_to_df(index)        
-
-        else:
-            # If result count is 1000 or more, check one more time
-            print("Result count is 1000 or more. Checking again...")
-            time.sleep(5)  # Wait a bit before checking again
-
-            if not self.check_datefilter():
-                print("timeline isn't filtered")
-                self.DateFilter(index)
-
-            else:
-                print('result_count is over one thousand')
-            # Repeat the process to get the count again
-            count_element = WebDriverWait(self.driver, self.timeout).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "#sidebar > div.search-controls > div.content-type-container.isBisNexisRedesign > ul > li.active"))
-            )
-            result_count_element = count_element.get_attribute("data-actualresultscount")
-            self.result_count = int(result_count_element)
-            print(f"Second check result count for row {index} is {self.result_count}")
-
-            if self.result_count < 1000:
-                self.result_count_to_df(index) 
-
-            else:
-                self.DateFilter(index)    
-                time.sleep(5)
-                
-                if self.result_count < 1000:
-                    self.result_count_to_df(index) 
-                else:
-                    # If still 1000 or more, update status data and raise SkipRowException
-                    if self.download_type == 'excel':
-                        self.status_data.loc[index, 'basin_count'] = self.result_count
-                    else:
-                        self.status_data.loc[index, 'total_count'] = self.result_count
-                    self.status_data.loc[index, 'over_one_thousand'] = 1
-                    self.status_data.to_csv(self.status_file)
-                    raise SkipRowException(f"Result count is still {self.result_count} after third check.")
-
-
-    def DateFilter(self, index):
-
-        if self.check_datefilter():
-            print("need to clear date filter")
-            self.timeline_reset() 
-
-        print("Setting new date range")
-        try:
-            self.set_date_range(index)
-            
-        except NoSuchElementException:
-            self.open_timeline()
-            self.set_date_range(index)
-
-        try:
-            self.get_result_count(index)
-            self.result_count_handling(index)
-
-        except SkipRowException:
-            raise
-            #end the loop, go to next one
-
-    def ExcelSegments(self):
-        # we just want headline, summary, publication, date
-        self.checkboxes = self.driver.find_elements(By.CSS_SELECTOR, 'input[type="checkbox"]')
-        self.keep_checked_ids = ['HEA', 'PUB', 'PDT'] # headline, publication, published date
-        # Scroll into view and uncheck each checkbox if it is checked
-        for checkbox in self.checkboxes:
-            id = checkbox.get_attribute('id')
-            try:    
-                if checkbox.is_selected() and id not in self.keep_checked_ids:
-                    ActionChains(self.driver).move_to_element(checkbox).perform()
-                    checkbox.click()
-            except Exception as e:
-                #print(f"Error processing checkboxes: {e}")
-                #print(f"Error processing checkboxes") # terminal looks messy printing the whole error but I can keep this if necessary
-                pass
-        print("unchecked unnecessary columns")
-
-    def get_filename(self, index):
-        if self.download_type == 'excel':
-            self.filename = f'ResultsList_{self.basin_code}_index{index}'
-            return self.filename
-        else:
-            self.filename = f'FullText_{self.basin_code}_index{index}'
-            return self.filename
-
-    def excelDownloadOptions(self):
-    
-        results_list_option = WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable
-                            ((By.XPATH, "//input[@type='radio' and @id='ResultsListOnly']")))
-        results_list_option.click()
-        print("choose resultslist download type")
+    #  get_ranges as an instance method
+    def get_ranges(self):
+        """Get ranges based on result count and download limit"""
+        # get full count from site
+        full_count = self.get_result_count() 
         
-        #self.result_list_field = '#SelectedRange' #css
-        #self.result_list_field = '//*[@id="SelectedRange"]' #xpath copied
-        #self.result_list_field = "//input[@type='text' and @id='SelectedRange']" #xpath my guess
+        # hard-coding limit of 500 to it because that's the nexis uni limit for word full text
+        download_limit = 500 
 
-        try:
-            self.result_range_string = f"1-{self.result_count}"
-            print(f"Results {self.result_range_string}")
-            time.sleep(2)
-        except SingleResultException:
-            self.result_range_string = f"{self.result_count}"
-            print(f"Only one result to download")
-            time.sleep(2)
+        # this generates a list of ranges that will be used in the download dialog box
+        ranges = []
+        for i in range(1, full_count, download_limit):
+            end = min(i + (download_limit - 1), full_count)
+            ranges.append(f"{i}-{end}")
 
-        # put in results count to download
-        self._send_keys_from_xpath(self.result_range_field, self.result_range_string)
-        
-        self.filetype_excel_option = "//input[@type='radio' and @id='XLSX']"
-        print("choose excel option")
-        self._click_from_xpath(self.filetype_excel_option)
-        time.sleep(2)
+        # this matches downloaded files to the ranges
+        downloaded_ranges = [f.split("_")[-1].replace(".ZIP", "") for f in os.listdir(self.download_folder) if f.endswith(".ZIP")]
 
-        # un-select unnecessary columns
-        self.ExcelSegments()
-        time.sleep(2)
-
-    def pdfDownloadOptions(self, index):
-            #status_data... unless it's defined outside the class??
-            #self.start_count = self.status_data.loc[index, 'start_count']
-            #self.stop_count = self.status_data.loc[index, 'stop_count']
-            try:
-                string_end_count = (self.start_count - 1) + self.file_count
-                self.result_range_string = f"{self.start_count}-{string_end_count}"
-                print(f"Results {self.result_range_string}")
-                time.sleep(2)
-
-            except SingleResultException:
-                self.result_range_string = f"{self.result_count}"
-                print(f"Only one result to download")
-                time.sleep(2)  
-
-            MSWord_option = "//input[@type= 'radio' and @id= 'Docx']"
-            self._click_from_xpath(MSWord_option)
-
-            separate_files_option = "//input[@type= 'radio' and @id= 'SeparateFiles']"
-            self._click_from_xpath(separate_files_option)
-
-            #zip_option = "//input[@type= 'checkbox' and @id= 'ZipFile']"
-            #self._click_from_xpath(zip_option) # it's selected by default when saving individual files
-            time.sleep(2)
-
-            self._send_keys_from_xpath(self.result_range_field, self.result_range_string)
-            time.sleep(2)
-
+        # this compares those lists and creates a new list of ranges to be downloaded
+        not_downloaded_ranges = sorted(list(set(ranges)^set(downloaded_ranges)), key=lambda x: int(x.split('-')[0]))
+        return not_downloaded_ranges
+    
     def check_for_download_restriction(self):
         """Monitor for the yellow download restriction banner that appears briefly"""
         try:
@@ -793,52 +510,52 @@ class Download:
         except Exception as e:
             print(f"Error checking for download limit banner")
             return {"found": False}
-     
 
-    def check_clear_downloads(self, index): # for a manual check
-        #if file in default_download contains the name "Files (" move it to a folder
-        self.default_download_name = f"Files ({self.file_count}).ZIP"
-        self.unsorted_past_download = f"{self.download_folder_temp}/{self.default_download_name}"
-        if os.path.exists(os.path.join(self.download_folder_temp, self.default_download_name)):
-            print(f"there's an unsorted file matching {self.default_download_name} name in downloads")
-            self.create_unsorted_folder(index)
-            self.move_unsorted()
 
-    def create_unsorted_folder(self, index):
-        self.unsorted_folder = Path(f"{self.download_folder}/{self.basin_code}_unsorted_foundindex{index}") # in default download
-        if self.unsorted_folder.is_dir():
-            pass
-
-        else:
-            print(f"creating unsorted folder {self.unsorted_folder}")
-            os.makedirs(self.unsorted_folder)
-
-        print(f"to move missing download {self.unsorted_past_download}: check status sheet before index {self.index} for matching file count and check file header for date range to confirm")
-
-    def move_unsorted(self):
-        unsorted_moved_path = f"{self.unsorted_folder}/{self.default_download_name}"
-        os.rename(self.unsorted_past_download, unsorted_moved_path)
-        print(f"file {self.filename} in {self.basin_code} download folder")
-
-    def click_download(self, index): 
+    # Moving dialog methods into Download class
+    def download_dialog(self, r):
+        """Handle the download dialog process"""
+        open_download_options = "//button[@data-action='downloadopt' and @aria-label='Download']"
+        result_range_field = "//input[@id='SelectedRange']"
 
         try:
-            self.download_button = "//button[@type='submit' and @class='button primary' and @data-action='download']"
-            self._click_from_xpath(self.download_button)
-            print(f"downloading {self.filename}")
             time.sleep(10)
-            
-            # Wait for and confirm download
-            if not self.wait_for_download():
-                print(f"Download failed for index {index}")
-                return False
+            self._click_from_xpath(open_download_options)
+            time.sleep(2)
 
-            time.sleep(5)
-            return True
+        except (ElementClickInterceptedException, StaleElementReferenceException):
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # check if we're in dialog box, looking for result range field
+                    WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, result_range_field)))                        
+                    break  # Exit the loop if successful
 
-        except Exception as e:
-            print(f"Error processing download for index {index}")
-            return False  
+                except (NoSuchElementException, TimeoutException):
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                        print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
+                        time.sleep(10)
+                        self._click_from_xpath(open_download_options)  # Try opening the download options again
+                        time.sleep(2)
+                    else:
+                        print(f"could not open dialog box, will skip range {r}")
+                        # maybe
+                        
+
+        # enter range once we're in dialog box
+        self._send_keys_from_xpath(result_range_field, r) # ensure r is set somewhere
+
+        # click MS word option
+        MSWord_option = "//input[@type= 'radio' and @id= 'Docx']"
+        self._click_from_xpath(MSWord_option)
+
+        separate_files_option = "//input[@type= 'radio' and @id= 'SeparateFiles']"
+        self._click_from_xpath(separate_files_option)
+
+        # click on download
+        download_button = "//button[@type='submit' and @class='button primary' and @data-action='download']"
+        self._click_from_xpath(download_button)
 
     def wait_for_download(self, download_start_timeout=120, download_complete_timeout=400):
         """Wait for download to complete with better timeout handling"""
@@ -850,25 +567,26 @@ class Download:
             WebDriverWait(self.driver, download_start_timeout).until(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
-            print("Download started, processing...")
+            #print("Download started, processing...")
+            elapsed_time = time.time() - start_time # want to check how long it takes when it works
+            print(f"Download started after {elapsed_time:.2f} seconds, processing...")
             
         except TimeoutException as e:
             elapsed_time = time.time() - start_time
-            print(f"Download popup never appeared after {elapsed_time:.2f} seconds")
-            # raise DownloadNeverStartedException(
-            #     f"Download failed to start within {download_start_timeout} seconds"
-            # )
+            print(f"Download did not start after {elapsed_time:.2f} seconds")
+            raise DownloadFailedException
         
         try:
             # Wait for UI indication that browser finished
             WebDriverWait(self.driver, download_complete_timeout).until_not(
                 EC.presence_of_element_located((By.ID, "delivery-popin"))
             )
-            print("Browser reports download complete!")
             
             end_time = time.time()
             elapsed_time = end_time - start_time
-            print(f"Download completed in {elapsed_time:.2f} seconds")
+            #print(f"Download completed in {elapsed_time:.2f} seconds") #
+            # this is kind of a misleading printout, as sometimes UI popup presence changes but download did not complete
+            # note: it might be nice to be able to detect what type of UI response appears, to determine whether a download occurred or not
             return True
             
         except TimeoutException as e:
@@ -885,142 +603,55 @@ class Download:
             print(f"Failed after {elapsed_time:.2f} seconds")
             raise  # Re-raise the unexpected exception
 
-    def move_file(self, index):
-        self.filename = self.get_filename(index)
-        self.file_count = int(self.status_data.loc[index, 'total_count'])
-
-        if self.download_type == 'excel':
-
-            self.default_download_path = f"{self.download_folder_temp}/{self.filename}.ZIP"
-
-        else:
-            # for some reason the PDF download filename defaults to 
-            self.default_download_path = f"{self.download_folder_temp}/{self.default_download_name}"
-            print(f"looking for {self.default_download_name} in default downloads folder")
-
-        self.geography_download_path = f"{self.download_folder}/{self.filename}.ZIP"
-
-        try:
-            os.rename(self.default_download_path, self.geography_download_path)
-            print(f"file {self.filename} in {self.basin_code} download folder")
-            time.sleep(2)
-            return True
-
-        except FileNotFoundError:
-            print(f"file not found")
-            time.sleep(10)
-
-            try:
-                self.driver.refresh() # maybe a coincidence but this did the trick last time?
-                time.sleep(5)
-                os.rename(self.default_download_path, self.geography_download_path)
-                print(f"file successfully moved to {self.basin_code} download folder")
-                time.sleep(2)
-
-            except FileNotFoundError:
-                print(f"file missing or not moved, check default download folder")
-                time.sleep(2)
-
-    def update_status(self, index):
-        self.filename = self.get_filename(index)
-        self.downloaded_file = self.filename + ".ZIP"
-        
-        downloaded_file_path = os.path.join(self.download_folder, self.downloaded_file)
-        file_exists = os.path.isfile(downloaded_file_path)
-
-        if file_exists:
-            self.status_data.loc[index, 'file_name'] = self.filename
-            self.status_data.loc[index, 'finished'] = 1
-            self.status_data.to_csv(self.status_file)
-            print(f"status sheet row {index} updated")
-        else:
-            self.status_data.loc[index, 'finished'] = 0
-            print(f"row {index} not marked as finished")
-
-    def file_handling(self, index):
-        self.move_file(index)
-        self.update_status(index)
-
-    def DownloadProcess(self, index):
-        self.DateFilter(index)
-        try:
-            self.DownloadDialog(index)
-            self.file_handling(index)
-        except SkipRowException:
-            raise
-        except ResetRequiredException:
-            raise
-
-    def main(self, index, basin_code):
-        print(f"Download for {basin_code}")
-        self.DownloadSetup()  # sort by date and group duplicates before date filtering
-        
-        row_index = 0
-        while row_index < len(self.status_data):
-
-            # Check if all rows are finished
-            if (self.status_data['finished'] == 1).all():
-                print(f"All rows for {basin_code} are downloaded!")
-                break
-
-            row = self.status_data.iloc[row_index]
-            self.finished = row['finished']
-            self.over_thousand = row['over_one_thousand']
-
-            if self.finished != 1 and self.over_thousand != 1:
-                try:
-                    print(f"Proceeding to download basin {basin_code} row {row_index}")
-                    time.sleep(1)
-                    self.current_row = row
-                    self.DownloadProcess(row_index)
-                    row_index += 1  # Move to next row only if successful
-                except SkipRowException:    
-                    print(f"row {row_index} result count exceeds 1000, skipping to next row")
-                    self.status_data.at[row_index, 'over_one_thousand'] = 1  # Update status
-                    row_index += 1  # Move to next row
-                except ResetRequiredException:
-                    if self.reset_needed:
-                        self.reset()
-                        self.reset_needed = False
-                        time.sleep(1)
-                        print(f"Restarting download process at row {row_index}")
-                        # Don't increment row_index, will retry the same row
-            else:
-                row_index += 1  # Move to next row if finished or over thousand
     
+    def move_file(self, r):
+        # Find matching file
+        default_filename = [f for f in os.listdir(self.download_folder_temp) if re.match(r"Files \(\d+\)\.ZIP", f)]
 
-    def reset(self):
-        sign_in_button = "//button[@id='SignInRegisterBisNexis']"
-        try:
-            self._click_from_xpath(sign_in_button)
-            print("logging out")
-        except ElementClickInterceptedException:
-            find_sign_in = self.driver.find_element_by_xpath(sign_in_button)
-            self.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
-        self.driver.delete_all_cookies()
-        print("deleting cookies before logging in again")
-        time.sleep(3)
-        self.login._init_login()
-        self.nlc._search_process()
-        time.sleep(5)
-        self.DownloadSetup()
+        if default_filename:  # If we found any matching files
+            print("Download completed!")
+            # Use the first matching file
+            default_download_path = os.path.join(self.download_folder_temp, default_filename[0])
+            geography_download_path = os.path.join(self.download_folder, f"{self.basin_code}_results_{r}.ZIP")
 
-#this calls it 
-'''
+            # Check if file exists and move it
+            if os.path.isfile(default_download_path):
+                os.rename(default_download_path, geography_download_path)
+                print(f"moving file to {geography_download_path}")
 
-download = Download(
-            driver=driver,
-            basin_code=basin_code,
-            user_name=user_name,
-            index=0,  
-            login = login,
-            nlc = nlc,
-            download_type = download_type,
-            download_folder = download_folder,
-            download_folder_temp = download_folder_temp,
-            status_file=status_file,
-            finished=False,  
-            url=None,  
-            timeout=20 )
+        else:
+            print(f"file containing range {r} was not downloaded")
 
-'''
+
+    def check_clear_downloads(self, r):
+        """Check for and handle unsorted downloads"""
+        # Find file matching pattern
+        default_download_pattern = r"Files \(\d+\)\.ZIP"
+        matching_files = [f for f in os.listdir(self.download_folder_temp) if re.match(default_download_pattern, f)]
+        
+        if matching_files:  # If any matching files found
+            print("There's an unsorted file in downloads")
+            self.create_unsorted_folder(r)
+            self.move_unsorted(r, matching_files[0])  # Pass the filename to move_unsorted
+
+    def create_unsorted_folder(self, r):
+        """Create folder for unsorted downloads"""
+        self.unsorted_folder = Path(f"{self.download_folder}/{self.basin_code}_unsorted")
+        if not os.path.exists(self.unsorted_folder):
+            print(f"Creating unsorted folder {self.unsorted_folder}")
+            os.makedirs(self.unsorted_folder)
+
+        print("+" * 48)
+        print(f"Check unsorted download found in range {r}")
+        print("+" * 48)
+
+    def move_unsorted(self, r, original_filename):
+        """Move unsorted files to the unsorted folder"""
+        # Use the original file's full path
+        original_path = os.path.join(self.download_folder_temp, original_filename)
+        
+        unsorted_filename = f"foundinrange_{r}.ZIP"
+        unsorted_moved_path = os.path.join(self.unsorted_folder, unsorted_filename)
+        
+        os.rename(original_path, unsorted_moved_path)
+        print(f"File {unsorted_filename} moved to {self.basin_code} download folder")
