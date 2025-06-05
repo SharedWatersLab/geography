@@ -1,12 +1,14 @@
 from geography.classes.LoginClass import PasswordManager, WebDriverManager, Login
-from geography.classes.NoLinkClass import NoLinkClass
-from geography.classes.DownloadClass import Download
-from geography.classes.SearchClass import newsearch
-from geography import RangesDownload
+from geography.classes.DownloadClass import Download, DownloadFailedException
+from geography.classes.SearchClass import Search
+
 import os
+import shutil
 import time
 import re
 from tqdm import tqdm
+import datetime
+from pathlib import Path
 
 start_date = '06/30/2008'
 end_date = '04/30/2025'
@@ -28,6 +30,46 @@ def get_user(basin_code, uname):
     
     return paths, uname
 
+def reset(download, login, search):
+    sign_in_button = "//button[@id='SignInRegisterBisNexis']"
+    try:
+        download._click_from_xpath(sign_in_button)
+        print("logging out")
+    except Exception as e:
+        #download.handle_popups() # maybe try this, sometimes the problem is the download dialog
+        find_sign_in = download.driver.find_element_by_xpath(sign_in_button)
+        download.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
+    download.driver.delete_all_cookies()
+    print("deleting cookies before logging in again")
+    time.sleep(3)
+    login._init_login()
+    search.search_process(start_date, end_date)
+    time.sleep(5)
+    download.DownloadSetup()
+
+def move_failed_downloads(download_folder, basin_code):
+    if os.path.exists(download_folder) and os.listdir(download_folder):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        #give the new folder a name
+        failed_folder = f"{basin_code}_failed_{timestamp}"
+        
+        try:
+            # rename download folder (to "move" its contents to failed folder)
+            os.rename(download_folder, failed_folder)
+            print(f"Moved failed downloads to: {failed_folder}")
+            
+            # need to recreate an empty download_folder 
+            os.makedirs(download_folder)
+
+            # now move failed folder into the new empty download folder lol
+            new_failed_folder_path = os.path.join(download_folder, failed_folder)
+            os.rename(failed_folder, new_failed_folder_path)
+            
+        except Exception as e:
+            print(f"Error moving folder: {e}")
+    else:
+        print(f"Download folder {download_folder} doesn't exist or is empty, nothing to move")
+
 def full_process(basin_code, username, paths):
     """
     Main download process function.
@@ -37,7 +79,10 @@ def full_process(basin_code, username, paths):
         username (str): Username from streamlit input
         paths (dict): Dictionary containing file paths
     """
-    
+    print("~" * 27)
+    print(f"Starting download for {basin_code}!")
+    print("~" * 27)
+
     download_folder = paths["download_folder"]
     download_folder_temp = paths["download_folder_temp"]
     
@@ -66,16 +111,18 @@ def full_process(basin_code, username, paths):
     login = Login(user_name=username, password=password, driver_manager=manager, url=None)
     login._init_login()
 
-    # NoLinkClass - pass geography_folder from paths
-    nlc = NoLinkClass(driver, basin_code, username, paths["geography_folder"])
+    # Search process
+    search = Search(driver, basin_code, username, paths["geography_folder"])
+    search.search_process(start_date, end_date)  # Note: These variables need to be set at the top of utils, passed as parameters
+
 
     # Download setup - streamlined parameters
     download = Download(
         driver=driver,
         basin_code=basin_code,
-        username=username, 
+        username=username,
         login=login,
-        nlc=nlc,
+        search=search,
         download_folder=download_folder,
         download_folder_temp=download_folder_temp,
         finished=False,
@@ -83,70 +130,83 @@ def full_process(basin_code, username, paths):
         timeout=20
     )
     
-    # Search process
-    search = newsearch(nlc, download)
-    search.search(start_date, end_date)  # Note: These variables need to be passed as parameters
 
     time.sleep(5)
     download.DownloadSetup()
 
-    # Download ranges setup
-    dialog_box = RangesDownload.dialog(download, username, basin_code, download_folder, download_folder_temp)
-    ranges_to_download = RangesDownload.get_ranges(download, download_folder) 
-
     # Main download process
     before = time.time()
 
-    while True:
+    consecutive_failures = 0
+    failure_threshold = 2
+
+    #running=True
+    while True: #while running:
         # Get ranges that still need downloading
-        ranges_to_download = RangesDownload.get_ranges(download, download_folder)
+        ranges_to_download = download.get_ranges()
         
         if not ranges_to_download:
-            print("all ranges for basin downloaded")
+            print(f"All ranges for basin {basin_code} downloaded!")
             break
+            #running=False
         
         print(f"Attempting to download {len(ranges_to_download)} ranges")
-    
+        
+        # Track if this entire iteration succeeds
+        #iteration_had_success = False
 
-        try:
-            for i, r in enumerate(tqdm(ranges_to_download)):
-                #
+        if consecutive_failures == failure_threshold:
+            print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
+            move_failed_downloads(download_folder, basin_code)
+            search.switch_to_riparian()
+            consecutive_failures = 0
+            reset(download, login, search)
+            
+            continue
+
+        for i, r in enumerate(tqdm(ranges_to_download)):
+            try:
                 if i == len(ranges_to_download) - 1:  # Last range
                     print("Re-checking ranges before final download...")
-                    updated_ranges = RangesDownload.get_ranges(download, download_folder)
+                    updated_ranges = download.get_ranges()
                     if updated_ranges and r != updated_ranges[-1]:
                         print(f"Last range updated from {r} to {updated_ranges[-1]}")
                         r = updated_ranges[-1]  # Use the updated last range
                 
                 if i > 0: # if it's not the first loop
-                    download.reset() # reset, which includes login, search, and setup
+                    reset(download, login, search) # reset, which includes login, search, and setup
 
-                dialog_box.check_clear_downloads(r)
-                dialog_box.download_dialog(r)
+                download.check_clear_downloads(r)
+                download.download_dialog(r)
                 print(f"preparing to download range {r}")
 
                 download.wait_for_download()
                 download.move_file(r)
-                
-                # # Find matching file
-                # default_filename = [f for f in os.listdir(download_folder_temp) if re.match(r"Files \(\d+\)\.ZIP", f)]
-
-                # if default_filename:  # If we found any matching files
-                #     # Use the first matching file
-                #     default_download_path = os.path.join(download_folder_temp, default_filename[0])
-                #     geography_download_path = os.path.join(download_folder, f"{basin_code}_results_{r}.ZIP")
-
-                #     # Check if file exists and move it
-                #     if os.path.isfile(default_download_path):
-                #         os.rename(default_download_path, geography_download_path)
-                #         print(f"moving file to {geography_download_path}")
 
                 after = time.time()
                 elapsed = after - before
+
+                consecutive_failures = 0 # reset on success
                 print("Time elapsed since process began (minutes): ", elapsed/60)
 
-        except Exception as e:
-            print(f"Error occurred: {e}")
+            except DownloadFailedException:
+                consecutive_failures += 1
+                print(f"Download failed for range {r} after {consecutive_failures} consecutive failures, trying next range...")
+                #continue  # Try next range
+            
+            except Exception as e:
+                print(f"Error occurred with range {r}: {e}")
+                continue  # Try next range
+        
+        # # After trying all ranges in this iteration
+        # if iteration_had_success:
+        #     consecutive_failures = 0  # Reset on any success
+        # else:
+        #     consecutive_failures += 1
+        #     print(f"Entire iteration failed. Consecutive failures: {consecutive_failures}")
+            
+
+                # Continue to next iteration with new search method
             
             
     # finally:

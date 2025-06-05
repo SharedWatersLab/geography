@@ -24,32 +24,24 @@ import sys
 import os
 import re
 
-
 from classes.LoginClass import Login
-from classes.NoLinkClass import NoLinkClass
+from classes.SearchClass import Search
 
 
-# class ResetRequiredException(Exception):
-#     pass
-
-# class SkipRowException(Exception):
-#     pass
-
-# class SingleResultException(Exception):
-#     pass
+class DownloadFailedException(Exception):
+    def __init__(self, message="Download persistently failing to complete"):
+        self.message = message
+        super().__init__(self.message)
 
 class Download:
 
-    def __init__(self, driver, basin_code, username, login, nlc, download_folder: str, download_folder_temp, finished, url=None, timeout=20):
-        """
-        REMOVED: download_type parameter (eliminating that concept)
-        REMOVED: status_file parameter (eliminating status files)
-        """
+    def __init__(self, driver, basin_code, username, login, search, download_folder: str, download_folder_temp, finished, url=None, timeout=20):
+
         self.driver = driver
         self.basin_code = basin_code
         self.username = username
         self.login = login
-        self.nlc = nlc
+        self.search = search
         self.finished = finished 
         self.url = url
         self.timeout = timeout
@@ -126,7 +118,6 @@ class Download:
         time.sleep(10)
 
     def handle_popups(self, max_popups=5):
-
         # Counter to prevent infinite loops
         popups_closed = 0
         
@@ -249,7 +240,6 @@ class Download:
                 continue
         
         print("Failed to sort by date after multiple attempts")
-
 
     def DownloadSetup(self):
         self.group_duplicates()
@@ -388,7 +378,8 @@ class Download:
                         
                         if result_count:
                             print(f"Successfully found result count: {result_count} using {successful_strategy}")
-                            return self.result_count
+                            self.result_count = result_count
+                            return result_count
                             
                     except Exception as e:
                         print(f"Strategy '{strategy['name']}' failed")
@@ -409,16 +400,16 @@ class Download:
                         if attempt == 0:
                             # First retry: just wait longer (common case)
                             print(f"No result count found on attempt {attempt + 1}, waiting longer and retrying...")
-                            time.sleep(15)  # Longer wait for large result sets
+                            time.sleep(30)  # Longer wait for large result sets
                         elif attempt == 1:
                             # Second retry: refresh the page
                             print("Refreshing page to reload result count data...")
                             self.driver.refresh()
-                            time.sleep(10)  # Wait for page to reload
+                            time.sleep(30)  # Wait for page to reload
                         else:
                             # Final retry: longer wait after refresh
                             print("Final attempt: waiting for backend processing to complete...")
-                            time.sleep(20)
+                            time.sleep(60)
                     else:
                         print("Could not retrieve result count after all attempts.")
                         print("The element may exist but the data-actualresultscount attribute is not being populated.")
@@ -441,6 +432,44 @@ class Download:
         
         return None
 
+    # def reset(self):
+    #     sign_in_button = "//button[@id='SignInRegisterBisNexis']"
+    #     try:
+    #         self._click_from_xpath(sign_in_button)
+    #         print("logging out")
+    #     except ElementClickInterceptedException:
+    #         find_sign_in = self.driver.find_element_by_xpath(sign_in_button)
+    #         self.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
+    #     self.driver.delete_all_cookies()
+    #     print("deleting cookies before logging in again")
+    #     time.sleep(3)
+    #     self.login._init_login()
+    #     self.search.search_process(start_date, end_date)
+    #     time.sleep(5)
+    #     self.DownloadSetup()
+
+    #  get_ranges as an instance method
+    def get_ranges(self):
+        """Get ranges based on result count and download limit"""
+        # get full count from site
+        full_count = self.get_result_count() 
+        
+        # hard-coding limit of 500 to it because that's the nexis uni limit for word full text
+        download_limit = 500 
+
+        # this generates a list of ranges that will be used in the download dialog box
+        ranges = []
+        for i in range(1, full_count, download_limit):
+            end = min(i + (download_limit - 1), full_count)
+            ranges.append(f"{i}-{end}")
+
+        # this matches downloaded files to the ranges
+        downloaded_ranges = [f.split("_")[-1].replace(".ZIP", "") for f in os.listdir(self.download_folder) if f.endswith(".ZIP")]
+
+        # this compares those lists and creates a new list of ranges to be downloaded
+        not_downloaded_ranges = sorted(list(set(ranges)^set(downloaded_ranges)), key=lambda x: int(x.split('-')[0]))
+        return not_downloaded_ranges
+    
     def check_for_download_restriction(self):
         """Monitor for the yellow download restriction banner that appears briefly"""
         try:
@@ -482,6 +511,52 @@ class Download:
             print(f"Error checking for download limit banner")
             return {"found": False}
 
+
+    # Moving dialog methods into Download class
+    def download_dialog(self, r):
+        """Handle the download dialog process"""
+        open_download_options = "//button[@data-action='downloadopt' and @aria-label='Download']"
+        result_range_field = "//input[@id='SelectedRange']"
+
+        try:
+            time.sleep(10)
+            self._click_from_xpath(open_download_options)
+            time.sleep(2)
+
+        except (ElementClickInterceptedException, StaleElementReferenceException):
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # check if we're in dialog box, looking for result range field
+                    WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, result_range_field)))                        
+                    break  # Exit the loop if successful
+
+                except (NoSuchElementException, TimeoutException):
+                    if attempt < max_retries - 1:
+                        time.sleep(2)
+                        print(f"Attempt {attempt + 1} failed to open download window, retrying in 10 seconds")
+                        time.sleep(10)
+                        self._click_from_xpath(open_download_options)  # Try opening the download options again
+                        time.sleep(2)
+                    else:
+                        print(f"could not open dialog box, will skip range {r}")
+                        # maybe
+                        
+
+        # enter range once we're in dialog box
+        self._send_keys_from_xpath(result_range_field, r) # ensure r is set somewhere
+
+        # click MS word option
+        MSWord_option = "//input[@type= 'radio' and @id= 'Docx']"
+        self._click_from_xpath(MSWord_option)
+
+        separate_files_option = "//input[@type= 'radio' and @id= 'SeparateFiles']"
+        self._click_from_xpath(separate_files_option)
+
+        # click on download
+        download_button = "//button[@type='submit' and @class='button primary' and @data-action='download']"
+        self._click_from_xpath(download_button)
+
     def wait_for_download(self, download_start_timeout=120, download_complete_timeout=400):
         """Wait for download to complete with better timeout handling"""
         start_time = time.time()
@@ -499,9 +574,7 @@ class Download:
         except TimeoutException as e:
             elapsed_time = time.time() - start_time
             print(f"Download did not start after {elapsed_time:.2f} seconds")
-            # raise DownloadNeverStartedException(
-            #     f"Download failed to start within {download_start_timeout} seconds"
-            # )
+            raise DownloadFailedException
         
         try:
             # Wait for UI indication that browser finished
@@ -530,8 +603,8 @@ class Download:
             print(f"Failed after {elapsed_time:.2f} seconds")
             raise  # Re-raise the unexpected exception
 
+    
     def move_file(self, r):
-
         # Find matching file
         default_filename = [f for f in os.listdir(self.download_folder_temp) if re.match(r"Files \(\d+\)\.ZIP", f)]
 
@@ -549,36 +622,36 @@ class Download:
         else:
             print(f"file containing range {r} was not downloaded")
 
-    def reset(self):
-        sign_in_button = "//button[@id='SignInRegisterBisNexis']"
-        try:
-            self._click_from_xpath(sign_in_button)
-            print("logging out")
-        except ElementClickInterceptedException:
-            find_sign_in = self.driver.find_element_by_xpath(sign_in_button)
-            self.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
-        self.driver.delete_all_cookies()
-        print("deleting cookies before logging in again")
-        time.sleep(3)
-        self.login._init_login()
-        self.nlc._search_process()
-        time.sleep(5)
-        self.DownloadSetup()
 
-#this calls it 
-'''
+    def check_clear_downloads(self, r):
+        """Check for and handle unsorted downloads"""
+        # Find file matching pattern
+        default_download_pattern = r"Files \(\d+\)\.ZIP"
+        matching_files = [f for f in os.listdir(self.download_folder_temp) if re.match(default_download_pattern, f)]
+        
+        if matching_files:  # If any matching files found
+            print("There's an unsorted file in downloads")
+            self.create_unsorted_folder(r)
+            self.move_unsorted(r, matching_files[0])  # Pass the filename to move_unsorted
 
-    download = Download(
-        driver=driver,
-        basin_code=basin_code,
-        username=username,  # Consistent variable naming
-        login=login,
-        nlc=nlc,
-        download_folder=download_folder,
-        download_folder_temp=download_folder_temp,
-        finished=False,
-        url=None,
-        timeout=20
-    )
+    def create_unsorted_folder(self, r):
+        """Create folder for unsorted downloads"""
+        self.unsorted_folder = Path(f"{self.download_folder}/{self.basin_code}_unsorted")
+        if not os.path.exists(self.unsorted_folder):
+            print(f"Creating unsorted folder {self.unsorted_folder}")
+            os.makedirs(self.unsorted_folder)
 
-'''
+        print("+" * 48)
+        print(f"Check unsorted download found in range {r}")
+        print("+" * 48)
+
+    def move_unsorted(self, r, original_filename):
+        """Move unsorted files to the unsorted folder"""
+        # Use the original file's full path
+        original_path = os.path.join(self.download_folder_temp, original_filename)
+        
+        unsorted_filename = f"foundinrange_{r}.ZIP"
+        unsorted_moved_path = os.path.join(self.unsorted_folder, unsorted_filename)
+        
+        os.rename(original_path, unsorted_moved_path)
+        print(f"File {unsorted_filename} moved to {self.basin_code} download folder")
