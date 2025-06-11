@@ -13,13 +13,16 @@ from pathlib import Path
 start_date = '06/30/2008'
 end_date = '04/30/2025'
 
+_password_cache = None
+
 def get_user(basin_code, uname):
     # Use standard paths that work for any user
     base_path = os.path.expanduser("~")
     geography_folder = "./"
     download_folder_temp = os.path.join(base_path, "Downloads")
     download_folder = os.path.join(geography_folder, "data", "downloads", basin_code)
-    
+    #download_folder = os.path.join(base_path, "Box", basin_code) # testing if we can download to Box drive from base path directly
+
     paths = {
         "base_path": base_path,
         "user_name": uname,
@@ -30,7 +33,7 @@ def get_user(basin_code, uname):
     
     return paths, uname
 
-def reset(download, login, search):
+def logout_clearcookies(download):
     sign_in_button = "//button[@id='SignInRegisterBisNexis']"
     try:
         download._click_from_xpath(sign_in_button)
@@ -40,35 +43,38 @@ def reset(download, login, search):
         find_sign_in = download.driver.find_element_by_xpath(sign_in_button)
         download.driver.execute_script("return arguments[0].scrollIntoView(true);", find_sign_in)        
     download.driver.delete_all_cookies()
-    print("deleting cookies before logging in again")
+    print("deleting cookies")
+
+def reset(download, login, search):
+    logout_clearcookies(download)
     time.sleep(3)
     login._init_login()
     search.search_process(start_date, end_date)
     time.sleep(5)
     download.DownloadSetup()
 
-def move_failed_downloads(download_folder, basin_code):
-    if os.path.exists(download_folder) and os.listdir(download_folder):
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        #give the new folder a name
-        failed_folder = f"{basin_code}_failed_{timestamp}"
+# def move_failed_downloads(download_folder, basin_code):
+#     if os.path.exists(download_folder) and os.listdir(download_folder):
+#         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+#         #give the new folder a name
+#         failed_folder = f"{basin_code}_failed_{timestamp}"
         
-        try:
-            # rename download folder (to "move" its contents to failed folder)
-            os.rename(download_folder, failed_folder)
-            print(f"Moved failed downloads to: {failed_folder}")
+#         try:
+#             # rename download folder (to "move" its contents to failed folder)
+#             os.rename(download_folder, failed_folder)
+#             print(f"Moved failed downloads to: {failed_folder}")
             
-            # need to recreate an empty download_folder 
-            os.makedirs(download_folder)
+#             # need to recreate an empty download_folder 
+#             os.makedirs(download_folder)
 
-            # now move failed folder into the new empty download folder lol
-            new_failed_folder_path = os.path.join(download_folder, failed_folder)
-            os.rename(failed_folder, new_failed_folder_path)
+#             # now move failed folder into the new empty download folder lol
+#             new_failed_folder_path = os.path.join(download_folder, failed_folder)
+#             os.rename(failed_folder, new_failed_folder_path)
             
-        except Exception as e:
-            print(f"Error moving folder: {e}")
-    else:
-        print(f"Download folder {download_folder} doesn't exist or is empty, nothing to move")
+#         except Exception as e:
+#             print(f"Error moving folder: {e}")
+#     else:
+#         print(f"Download folder {download_folder} doesn't exist or is empty, nothing to move")
 
 def full_process(basin_code, username, paths):
     """
@@ -92,16 +98,22 @@ def full_process(basin_code, username, paths):
     else:
         os.makedirs(download_folder, exist_ok=True) 
         print(f"created folder {basin_code}")
-
-    # REMOVED: All status file related code (commented out sections)
-    # REMOVED: All download_type references since we're eliminating that concept
     
     # Password management
-    pm = PasswordManager()
-    if not pm.password:
-        print("No password found, please enter your password")
-        password = pm.get_password()
-        print("Password saved successfully")
+    global _password_cache
+
+    if _password_cache is None:
+        pm = PasswordManager()
+        if not pm.password:
+            print("No password found, please enter your password")
+            password = pm.get_password()
+            print("Password saved successfully")
+        else:
+            password = pm.password
+        _password_cache = password
+    else:
+        password = _password_cache
+        print("Using cached password")
     
     # WebDriver setup
     manager = WebDriverManager()
@@ -138,44 +150,50 @@ def full_process(basin_code, username, paths):
     before = time.time()
 
     consecutive_failures = 0
-    failure_threshold = 2
+    failure_threshold = 5 # higher consecutive error threshold
 
-    #running=True
-    while True: #while running:
+    running=True
+    #while True: #
+    while running:
         # Get ranges that still need downloading
         ranges_to_download = download.get_ranges()
         
         if not ranges_to_download:
             print(f"All ranges for basin {basin_code} downloaded!")
-            break
-            #running=False
+            logout_clearcookies(download)
+            driver.close()
+            #break
+            running=False
         
         print(f"Attempting to download {len(ranges_to_download)} ranges")
-        
-        # Track if this entire iteration succeeds
-        #iteration_had_success = False
 
-        if consecutive_failures == failure_threshold:
-            print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
-            move_failed_downloads(download_folder, basin_code)
-            search.switch_to_riparian()
-            consecutive_failures = 0
-            reset(download, login, search)
-            
-            continue
+        if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
+            # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
+            print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
+            # move_failed_downloads(download_folder, basin_code)
+            # search.switch_to_riparian()
+            # consecutive_failures = 0
+            # reset(download, login, search)
+            # #ranges_to_download = download.get_ranges()
+            # continue
+            logout_clearcookies(download)
+            driver.close() # now it will just stop
+            in_progress_download_folder = f"{download_folder}_failed_in_progress"
+            os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
+            running=False
 
         for i, r in enumerate(tqdm(ranges_to_download)):
             try:
-                if i == len(ranges_to_download) - 1:  # Last range
+                if i > 0: # if it's not the first loop
+                    reset(download, login, search) # reset, which includes login, search, and setup
+
+                if i == len(ranges_to_download) - 1:  # if it's the last loop
                     print("Re-checking ranges before final download...")
                     updated_ranges = download.get_ranges()
                     if updated_ranges and r != updated_ranges[-1]:
                         print(f"Last range updated from {r} to {updated_ranges[-1]}")
                         r = updated_ranges[-1]  # Use the updated last range
                 
-                if i > 0: # if it's not the first loop
-                    reset(download, login, search) # reset, which includes login, search, and setup
-
                 download.check_clear_downloads(r)
                 download.download_dialog(r)
                 print(f"preparing to download range {r}")
@@ -191,11 +209,12 @@ def full_process(basin_code, username, paths):
 
             except DownloadFailedException:
                 consecutive_failures += 1
-                print(f"Download failed for range {r} after {consecutive_failures} consecutive failures, trying next range...")
-                #continue  # Try next range
+                print(f"Download failed for range {r} after {consecutive_failures} consecutive failure(s)")
+                break
+                #continue
             
             except Exception as e:
-                print(f"Error occurred with range {r}: {e}")
+                #print(f"Error occurred with range {r}: {e}")
                 continue  # Try next range
         
         # # After trying all ranges in this iteration

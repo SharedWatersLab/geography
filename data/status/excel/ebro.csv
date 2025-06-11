@@ -1,8 +1,0 @@
-index,BCODE,Basin_Name,start_date,end_date,time_duration,basin_count,over_one_thousand,file_name,finished
-0,EBRO,Ebro,06/30/2008,06/30/2014,,698.0,,index_0__basin_code_ebro__min_1_max_698__06_30_2008_06_30_2014,1.0
-1,EBRO,Ebro,07/01/2014,06/30/2017,,509.0,,index_1__basin_code_ebro__min_1_max_509__07_01_2014_06_30_2017,1.0
-2,EBRO,Ebro,07/01/2017,03/31/2018,,633.0,,index_2__basin_code_ebro__min_1_max_633__07_01_2017_03_31_2018,1.0
-3,EBRO,Ebro,04/01/2018,12/31/2019,,876.0,,index_3__basin_code_ebro__min_1_max_876__04_01_2018_12_31_2019,1.0
-4,EBRO,Ebro,01/01/2020,12/31/2021,,763.0,,index_4__basin_code_ebro__min_1_max_763__01_01_2020_12_31_2021,1.0
-5,EBRO,Ebro,01/01/2022,06/30/2023,,526.0,,index_5__basin_code_ebro__min_1_max_526__01_01_2022_06_30_2023,1.0
-6,EBRO,Ebro,07/01/2023,03/15/2024,,278,,index_6__basin_code_ebro__min_1_max_278__07_01_2023_03_15_2024,1.0

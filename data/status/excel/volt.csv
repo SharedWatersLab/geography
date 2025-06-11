@@ -1,9 +1,0 @@
-index,BCODE,Basin_Name,start_date,end_date,time_duration,basin_count,over_one_thousand,file_name,finished
-0,VOLT,Volta,2008-06-30,2012-06-30,,,,,
-1,VOLT,Volta,2012-07-01,2015-06-30,,,,,
-2,VOLT,Volta,2015-07-01,2018-06-30,,,,,
-3,VOLT,Volta,2018-07-01,2020-06-30,,,,,
-4,VOLT,Volta,2020-07-01,2021-06-30,,,,,
-5,VOLT,Volta,2021-07-01,2023-07-01,,,,,
-6,VOLT,Volta,2023-07-02,2023-12-31,,,,,
-7,VOLT,Volta,2024-01-01,2024-03-15,,,,,

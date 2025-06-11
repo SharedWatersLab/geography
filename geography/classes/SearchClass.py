@@ -21,6 +21,7 @@ class Search:
         self.username = username  # Consistent naming
         self.geography_folder = geography_folder  # Now passed directly from paths
 
+        # this can manually be set to True if we want to try with narrower search terms/fewer results
         self.use_riparian = False # persistent download exception will "flip this switch" to proceed with riparian country search
         
         # Load tracking sheet - note the path might need adjustment

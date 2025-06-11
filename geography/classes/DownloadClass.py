@@ -619,8 +619,28 @@ class Download:
                 os.rename(default_download_path, geography_download_path)
                 print(f"moving file to {geography_download_path}")
 
+                
+            # Wait for Box Drive to sync the file
+            # self.wait_for_box_sync(geography_download_path)
+
         else:
             print(f"file containing range {r} was not downloaded")
+
+    def wait_for_box_sync(self, file_path, max_wait=30):
+        """Wait for file to be fully synced to Box Drive"""
+        print("Waiting for Box Drive sync...")
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
+            if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                # File exists and has content, likely synced
+                time.sleep(2)  # Small buffer for sync completion
+                print("File synced to Box Drive!")
+                return True
+            time.sleep(1)
+        
+        print("Warning: Box sync may not be complete")
+        return False
 
 
     def check_clear_downloads(self, r):
