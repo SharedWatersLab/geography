@@ -149,22 +149,26 @@ def full_process(basin_code, username, paths):
     # Main download process
     before = time.time()
 
+    ranges_to_download = download.get_ranges()
+
+    if not ranges_to_download:
+        print(f"All ranges for basin {basin_code} downloaded!")
+        logout_clearcookies(download)
+        driver.close()
+
+    if len(ranges_to_download) > 1000: # hoping that doing this outside the loop makes it set search process
+        search.switch_to_riparian()
+        search.search_process(start_date, end_date)
+        download.DownloadSetup()
+        ranges_to_download = download.get_ranges()
+
     consecutive_failures = 0
     failure_threshold = 5 # higher consecutive error threshold
 
     running=True
     #while True: #
     while running:
-        # Get ranges that still need downloading
-        ranges_to_download = download.get_ranges()
-        
-        if not ranges_to_download:
-            print(f"All ranges for basin {basin_code} downloaded!")
-            logout_clearcookies(download)
-            driver.close()
-            #break
-            running=False
-        
+
         print(f"Attempting to download {len(ranges_to_download)} ranges")
 
         if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
@@ -178,8 +182,8 @@ def full_process(basin_code, username, paths):
             # continue
             logout_clearcookies(download)
             driver.close() # now it will just stop
-            in_progress_download_folder = f"{download_folder}_failed_in_progress"
-            os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
+            #in_progress_download_folder = f"{download_folder}_failed_in_progress"
+            #os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
             running=False
 
         for i, r in enumerate(tqdm(ranges_to_download)):
