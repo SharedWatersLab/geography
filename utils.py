@@ -156,8 +156,10 @@ def full_process(basin_code, username, paths):
         logout_clearcookies(download)
         driver.close()
 
-    if len(ranges_to_download) > 1000: # hoping that doing this outside the loop makes it set search process
+    if download.get_result_count() > 150000 and not getattr(search, 'already_switched_to_riparian', False):
+    #if len(ranges_to_download) > 300 and not getattr(search, 'already_switched_to_riparian', False):
         search.switch_to_riparian()
+        search.already_switched_to_riparian = True  # Prevent re-switching
         search.search_process(start_date, end_date)
         download.DownloadSetup()
         ranges_to_download = download.get_ranges()
