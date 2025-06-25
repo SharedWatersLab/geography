@@ -149,12 +149,7 @@ def full_process(basin_code, username, paths):
     # Main download process
     before = time.time()
 
-    ranges_to_download = download.get_ranges()
-
-    if not ranges_to_download:
-        print(f"All ranges for basin {basin_code} downloaded!")
-        logout_clearcookies(download)
-        driver.close()
+    # ranges_to_download = download.get_ranges()
 
     if download.get_result_count() > 150000 and not getattr(search, 'already_switched_to_riparian', False):
     #if len(ranges_to_download) > 300 and not getattr(search, 'already_switched_to_riparian', False):
@@ -171,6 +166,16 @@ def full_process(basin_code, username, paths):
     #while True: #
     while running:
 
+        ranges_to_download = download.get_ranges()
+    
+        # Check if we're done
+        if not ranges_to_download:
+            print(f"All ranges for basin {basin_code} downloaded!")
+            logout_clearcookies(download)
+            driver.close()
+            running = False
+            break
+        
         print(f"Attempting to download {len(ranges_to_download)} ranges")
 
         if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
