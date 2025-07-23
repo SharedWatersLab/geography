@@ -69,7 +69,7 @@ class Search:
             pass
         else:
             print("Navigate to Nexis Uni home page")
-            self.driver.get("https://advance-lexis-com.ezproxy.library.tufts.edu/bisnexishome?crid=6537b0c7-d00a-4047-8afa-732967dfba6e&pdmfid=1519360&pdisurlapi=true")
+            self.driver.get("https://login.libdata.lib.ua.edu/login?qurl=http%3a%2f%2fwww.nexisuni.com")
             time.sleep(3)
 
     def _init_search(self):

@@ -171,8 +171,8 @@ class Login:
                     print("update chrome page not prompted")
                     pass
 
-                duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
-                if duo_page_substring in self.driver.current_url:
+                self.duo_page_substring = "duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
+                if self.duo_page_substring in self.driver.current_url:
                     print("DUO authentication prompted")
                     self.handle_duo_2fa()
                     time.sleep(2)
@@ -183,12 +183,13 @@ class Login:
                         print("DUO authentication failed")
                         return False  # Exit the method if DUO fails
                 else:
-                    print("DUO authentication not prompted")
+                    #print("DUO authentication not prompted")
                     pass
 
                 time.sleep(5)
                 # then this clicks reload if we're not brought to the home page
                 self.handle_reload_error()
+                # this might be a good place to also test out if it arrived to the correct home page.
                 time.sleep(5)
 
             except TimeoutException:
@@ -196,13 +197,13 @@ class Login:
                 pass
 
     def handle_duo_2fa(self):
-        duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
+        #duo_page_substring = "https://api-58712eef.duosecurity.com/frame/v4/auth/prompt?sid=frameless-"
         max_attempts = 2
         attempt = 0
 
         while attempt < max_attempts:
             try:
-                if duo_page_substring in self.driver.current_url:
+                if self.duo_page_substring in self.driver.current_url:
                     print('DUO push code on screen OR wait for call')
                     time.sleep(10)  # Reduced initial wait time
 
@@ -212,13 +213,13 @@ class Login:
                         time.sleep(2)
                     except: NoSuchElementException
                     
-                    if duo_page_substring not in self.driver.current_url:
+                    if self.duo_page_substring not in self.driver.current_url:
                         print("DUO authentication completed")
                         return True
                     
                     else:
                     
-                        if duo_page_substring in self.driver.current_url:
+                        if self.duo_page_substring in self.driver.current_url:
                             other_options_selector = "#auth-view-wrapper > div:nth-child(2) > div.row.display-flex.other-options-link.align-flex-justify-content-center.size-margin-bottom-large.size-margin-top-small"
                             print("waited for push, now calling")
                             self._click_from_css(other_options_selector)
@@ -233,12 +234,12 @@ class Login:
                                 print("skipping trust browser page")
                             except: NoSuchElementException
                             
-                            if duo_page_substring not in self.driver.current_url:
+                            if self.duo_page_substring not in self.driver.current_url:
                                 print("DUO authentication completed")
                                 return True
                     
                 # Check if we're still on the DUO page after waiting
-                if duo_page_substring not in self.driver.current_url:
+                if self.duo_page_substring not in self.driver.current_url:
                     print("DUO authentication successful")
                     break
 
