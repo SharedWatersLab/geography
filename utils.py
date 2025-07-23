@@ -149,15 +149,11 @@ def full_process(basin_code, username, paths):
     # Main download process
     before = time.time()
 
-    # ranges_to_download = download.get_ranges()
-
     if download.get_result_count() > 150000 and not getattr(search, 'already_switched_to_riparian', False):
-    #if len(ranges_to_download) > 300 and not getattr(search, 'already_switched_to_riparian', False):
         search.switch_to_riparian()
         search.already_switched_to_riparian = True  # Prevent re-switching
         search.search_process(start_date, end_date)
         download.DownloadSetup()
-        ranges_to_download = download.get_ranges()
 
     consecutive_failures = 0
     failure_threshold = 5 # higher consecutive error threshold
@@ -181,12 +177,6 @@ def full_process(basin_code, username, paths):
         if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
             # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
             print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
-            # move_failed_downloads(download_folder, basin_code)
-            # search.switch_to_riparian()
-            # consecutive_failures = 0
-            # reset(download, login, search)
-            # #ranges_to_download = download.get_ranges()
-            # continue
             logout_clearcookies(download)
             driver.close() # now it will just stop
             #in_progress_download_folder = f"{download_folder}_failed_in_progress"
@@ -198,12 +188,12 @@ def full_process(basin_code, username, paths):
                 if i > 0: # if it's not the first loop
                     reset(download, login, search) # reset, which includes login, search, and setup
 
-                if i == len(ranges_to_download) - 1:  # if it's the last loop
-                    print("Re-checking ranges before final download...")
-                    updated_ranges = download.get_ranges()
-                    if updated_ranges and r != updated_ranges[-1]:
-                        print(f"Last range updated from {r} to {updated_ranges[-1]}")
-                        r = updated_ranges[-1]  # Use the updated last range
+                # if i == len(ranges_to_download) - 1:  # if it's the last loop
+                #     print("Re-checking ranges before final download...")
+                #     updated_ranges = download.get_ranges()
+                #     if updated_ranges and r != updated_ranges[-1]:
+                #         print(f"Last range updated from {r} to {updated_ranges[-1]}")
+                #         r = updated_ranges[-1]  # Use the updated last range
                 
                 download.check_clear_downloads(r)
                 download.download_dialog(r)
@@ -228,16 +218,6 @@ def full_process(basin_code, username, paths):
                 #print(f"Error occurred with range {r}: {e}")
                 continue  # Try next range
         
-        # # After trying all ranges in this iteration
-        # if iteration_had_success:
-        #     consecutive_failures = 0  # Reset on any success
-        # else:
-        #     consecutive_failures += 1
-        #     print(f"Entire iteration failed. Consecutive failures: {consecutive_failures}")
-            
-
-                # Continue to next iteration with new search method
-            
             
     # finally:
     #     ranges_to_download = RangesDownload.get_ranges(download, download_folder) # run this again when loop is complete

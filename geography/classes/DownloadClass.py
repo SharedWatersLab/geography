@@ -540,7 +540,8 @@ class Download:
                         time.sleep(2)
                     else:
                         print(f"could not open dialog box, will skip range {r}")
-                        # maybe
+                        # this ight be a place to raise a +1 consecutive error flag
+                        raise DownloadFailedException
                         
 
         # enter range once we're in dialog box

@@ -106,45 +106,52 @@ class Login:
 
     def login_page(self):
         
-        TuftsLogin_selector = ".btn-shib > .login"
-        OpenAthens_selector = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div'
+        #TuftsLogin_selector = ".btn-shib > .login"
+        #OpenAthens_selector = '#lachooser-container > div:nth-child(2) > div > div:nth-child(1) > div:nth-child(1) > div'
         
         try:
             # First check which elements are present
-            openathens_elements = self.driver.find_elements(By.CSS_SELECTOR, OpenAthens_selector)
-            tufts_elements = self.driver.find_elements(By.CSS_SELECTOR, TuftsLogin_selector)
+            # openathens_elements = self.driver.find_elements(By.CSS_SELECTOR, OpenAthens_selector)
+            # tufts_elements = self.driver.find_elements(By.CSS_SELECTOR, TuftsLogin_selector)
             
-            if openathens_elements:
-                time.sleep(3)
-                self._click_from_css(OpenAthens_selector)
-                print("clicking through new OpenAthens page to get to login home")
-            elif tufts_elements:
-                print("On Tufts login page")
+            bama_element = 'body > div.content > div > div.col1 > div.mybama-login > a'
+            self._click_from_css(bama_element)
+            print("logging in with myBama credentials")
+
+            # if openathens_elements:
+            #     time.sleep(3)
+            #     self._click_from_css(OpenAthens_selector)
+            #     print("clicking through new OpenAthens page to get to login home")
+            # elif tufts_elements:
+            #     print("On Tufts login page")
             
             time.sleep(3)
             print("entering login information")
             self._send_keys_from_css("#username", self.user_name)
             self._send_keys_from_css("#password", self.password)
-            self._click_from_css("#login > button")
-            print("Entered Tufts username and password")
+            self._click_from_css("#login-form-controls > div > button > span")
+            
+            #print("Entered Tufts username and password")
+            print("Entered UA username and password")
             time.sleep(3)
             
             return True
             
         except TimeoutException:
-            print("Neither login page variant detected")
+            print("No login page variant detected")
             return False
 
     def _init_login(self):
         
-        loggedin_home = "https://login.ezproxy.library.tufts.edu/login?auth=tufts&url=http://www.nexisuni.com"
+        #loggedin_home = "https://login.ezproxy.library.tufts.edu/login?auth=tufts&url=http://www.nexisuni.com"
+        loggedin_home = 'https://login.libdata.lib.ua.edu/login?qurl=http%3a%2f%2fwww.nexisuni.com'
         self.driver.get(self.url or loggedin_home)
         time.sleep(5)
         
         try:
-            tuftsloggedin_element = "co-branding-display-name" # class name
+            loggedin_element = "co-branding-display-name" # class name
             WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((By.CLASS_NAME, tuftsloggedin_element)))
+                EC.presence_of_element_located((By.CLASS_NAME, loggedin_element)))
             print("User is already logged in.")
         except TimeoutException:
             print("User is not logged in. Proceeding with login...")
