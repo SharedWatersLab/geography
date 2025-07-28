@@ -29,7 +29,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-from driverTest import SetupDriver  # noqa: E402
+#from driverTest import SetupDriver  # noqa: E402
 
 class PasswordManager:
     def __init__(self):
@@ -49,10 +49,17 @@ class WebDriverManager:
         self.driver = None
         self.options = ChromeOptions()
         self.setup_options()
-        self.driver_path = Path("./chromedriver") / ("chromedriver.exe" if sys.platform == "win32" else "chromedriver")
-
-        service_path = ".\chromedriver\chromedriver.exe" if sys.platform.startswith("win") else "./chromedriver/chromedriver"
-        self.service = Service(service_path)
+        
+        # Use consistent path handling
+        self.driver_dir = Path("./chromedriver")
+        chromedriver_name = "chromedriver.exe" if sys.platform.startswith("win") else "chromedriver"
+        self.driver_path = self.driver_dir / chromedriver_name
+        
+        # Ensure the driver exists before creating service
+        if not self.driver_path.exists():
+            raise FileNotFoundError(f"ChromeDriver not found at {self.driver_path}. Run download_driver.py first.")
+        
+        self.service = Service(str(self.driver_path))
     
     def setup_options(self):
         self.options = webdriver.ChromeOptions()

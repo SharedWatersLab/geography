@@ -75,7 +75,8 @@ class Search:
     def _init_search(self):
         if self.url:
             self.driver.get(self.url)
-        news_button = 'body > main > div > ln-navigation > navigation > div.global-nav.light.margin-bottom-30 > div.zones.pagewrapper.product-switcher-navigation.pagewrapper-nexis > nexissearchtabmenu > div > tabmenucomponent > div > div > ul > li:nth-child(3) > button'
+        #news_button = 'body > main > div > ln-navigation > navigation > div.global-nav.light.margin-bottom-30 > div.zones.pagewrapper.product-switcher-navigation.pagewrapper-nexis > nexissearchtabmenu > div > tabmenucomponent > div > div > ul > li:nth-child(3) > button'
+        news_button = '#nexissearchbutton > tabmenucomponent > div > div > ul > li:nth-child(3) > button' # new selector for UA search
         self._click_from_css(news_button) # click to search in News
         news_advancedsearch_button = '#wxbhkkk > ul > li:nth-child(1) > button'
         self._click_from_css(news_advancedsearch_button) # click advanced search, PN: NOT WORKING FOR ME

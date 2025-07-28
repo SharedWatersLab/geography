@@ -106,6 +106,7 @@ def find_matching_driver_version(versions_data: dict, chrome_version: str, platf
     
     return None
 
+
 def download_chromedriver(chrome_version: str, platform_name: str, arch: str) -> bool:
     base_url = "https://googlechromelabs.github.io/chrome-for-testing"
     known_versions_url = f"{base_url}/known-good-versions-with-downloads.json"
@@ -137,6 +138,13 @@ def download_chromedriver(chrome_version: str, platform_name: str, arch: str) ->
         driver_dir = Path("./chromedriver")
         driver_dir.mkdir(exist_ok=True)
 
+        # Clean up existing ChromeDriver files
+        chromedriver_name = "chromedriver.exe" if platform_name == "win" else "chromedriver"
+        existing_driver = driver_dir / chromedriver_name
+        if existing_driver.exists():
+            print(f"Removing existing ChromeDriver: {existing_driver}")
+            existing_driver.unlink()
+
         print(f"Downloading ChromeDriver from {download_url}")
         response = requests.get(download_url)
         response.raise_for_status()
@@ -148,17 +156,20 @@ def download_chromedriver(chrome_version: str, platform_name: str, arch: str) ->
         with ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(driver_dir)
 
-        chromedriver_name = "chromedriver.exe" if platform_name == "win" else "chromedriver"
+        # Find the extracted chromedriver executable
         extracted_driver = next(driver_dir.rglob(chromedriver_name))
         final_driver_path = driver_dir / chromedriver_name
         
+        # Move to final location
         shutil.move(str(extracted_driver), str(final_driver_path))
         
+        # Clean up zip file and any extracted directories
         zip_path.unlink()
         for item in driver_dir.iterdir():
             if item.is_dir():
                 shutil.rmtree(item)
                 
+        # Make executable on Unix-like systems
         if platform_name != "win":
             os.chmod(final_driver_path, 0o755)
             
