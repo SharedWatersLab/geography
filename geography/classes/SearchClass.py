@@ -291,7 +291,8 @@ class Search:
         self.use_riparian = True
         # and then create a .txt file that's called 'riparian' and add it to the downloads/bcode folder, which we'll track in main sheet at completion
         riparian_txt = os.path.join(self.geography_folder, "data", "downloads", self.basin_code, "riparian_names_used.txt")
-        os.makedirs(riparian_txt)
+        if not os.path.exists(riparian_txt):
+            os.makedirs(riparian_txt)
     
     def search_process(self, start_date, end_date):
 
