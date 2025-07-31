@@ -1,6 +1,7 @@
 import time
 import platform
 import pandas as pd
+import os
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -95,13 +96,13 @@ class Search:
         else:
             excess_chars = len(string_with_country_names) - 5000 # how much longer is the string than the Nexis Uni limit?
             remove_from_box3 = len(self.box_3_keys) - excess_chars # how long does this make basin-specific limit?
-            print(f"string is {len(string_with_country_names)} characters, need to create a shorter string")
+            #print(f"string is {len(string_with_country_names)} characters, need to create a shorter string")
             box3_truncated = self.box_3_keys[:remove_from_box3] # trims basin-specific terms to exactly the limit
             last_or_pos = box3_truncated.rfind(" OR ") # finds the nearest 'or'
             # update the variable
             new_box_3_keys = self.box_3_keys[:last_or_pos] # truncates from there so the final term is a complete one
             truncated_riparian_string = 'hlead(' + self.box_1_keys + ') and hlead(' + self.box_2_keys + ') and hlead(' + new_box_3_keys + ') and hlead(' + box_5_keys + ') and not hlead(' + self.box_4_keys + ')'
-            print(f"new search string is {len(truncated_riparian_string)} characters")
+            #print(f"new search string is {len(truncated_riparian_string)} characters")
             return truncated_riparian_string
 
     def default_search(self):
@@ -288,6 +289,9 @@ class Search:
         """Flips the switch permanently"""
         print("Switching to riparian search mode...")
         self.use_riparian = True
+        # and then create a .txt file that's called 'riparian' and add it to the downloads/bcode folder, which we'll track in main sheet at completion
+        riparian_txt = os.path.join(self.geography_folder, "data", "downloads", self.basin_code, "riparian_names_used.txt")
+        os.makedirs(riparian_txt)
     
     def search_process(self, start_date, end_date):
 

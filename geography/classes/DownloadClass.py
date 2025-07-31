@@ -467,7 +467,17 @@ class Download:
         downloaded_ranges = [f.split("_")[-1].replace(".ZIP", "") for f in os.listdir(self.download_folder) if f.endswith(".ZIP")]
 
         # this compares those lists and creates a new list of ranges to be downloaded
-        not_downloaded_ranges = sorted(list(set(ranges)^set(downloaded_ranges)), key=lambda x: int(x.split('-')[0]))
+        not_downloaded_ranges = []
+        for r in ranges:
+            if r in downloaded_ranges:
+                continue
+            # For final range, check if any downloaded range has same start number
+            if r == ranges[-1]:
+                start_num = r.split('-')[0]
+                if any(dr.split('-')[0] == start_num for dr in downloaded_ranges):
+                    continue
+            not_downloaded_ranges.append(r)
+        not_downloaded_ranges = sorted(not_downloaded_ranges, key=lambda x: int(x.split('-')[0]))
         return not_downloaded_ranges
     
     def check_for_download_restriction(self):
@@ -545,7 +555,10 @@ class Download:
                         
 
         # enter range once we're in dialog box
-        self._send_keys_from_xpath(result_range_field, r) # ensure r is set somewhere
+        range_element = self.driver.find_element(By.XPATH, result_range_field)
+        range_element.clear()
+        range_element.send_keys(r)
+        #self._send_keys_from_xpath(result_range_field, r) # ensure r is set somewhere
 
         # click MS word option
         MSWord_option = "//input[@type= 'radio' and @id= 'Docx']"

@@ -152,6 +152,7 @@ class Login:
         
         #loggedin_home = "https://login.ezproxy.library.tufts.edu/login?auth=tufts&url=http://www.nexisuni.com"
         loggedin_home = 'https://login.libdata.lib.ua.edu/login?qurl=http%3a%2f%2fwww.nexisuni.com'
+        #loggedin_home = 'https://advance-lexis-com.libdata.lib.ua.edu/bisnexishome/'
         self.driver.get(self.url or loggedin_home)
         time.sleep(5)
         
@@ -211,7 +212,7 @@ class Login:
         while attempt < max_attempts:
             try:
                 if self.duo_page_substring in self.driver.current_url:
-                    print('DUO push code on screen OR wait for call')
+                    print('DUO push code to device')
                     time.sleep(10)  # Reduced initial wait time
 
                     try:
@@ -221,7 +222,7 @@ class Login:
                     except: NoSuchElementException
                     
                     if self.duo_page_substring not in self.driver.current_url:
-                        print("DUO authentication completed")
+                        #print("DUO authentication completed")
                         return True
                     
                     else:

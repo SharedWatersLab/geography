@@ -1,6 +1,7 @@
 from geography.classes.LoginClass import PasswordManager, WebDriverManager, Login
 from geography.classes.DownloadClass import Download, DownloadFailedException
 from geography.classes.SearchClass import Search
+from selenium.common.exceptions import SessionNotCreatedException
 
 import os
 import shutil
@@ -9,6 +10,8 @@ import re
 from tqdm import tqdm
 import datetime
 from pathlib import Path
+
+import download_driver
 
 start_date = '06/30/2008'
 end_date = '04/30/2025'
@@ -117,7 +120,14 @@ def full_process(basin_code, username, paths):
     
     # WebDriver setup
     manager = WebDriverManager()
-    driver = manager.start_driver()
+
+    try:
+        driver = manager.start_driver()
+    except SessionNotCreatedException:
+        print("Session not created, updating driver...")
+        download_driver.main()
+        time.sleep(2)
+        driver = manager.start_driver()
 
     # Login - using consistent username variable
     login = Login(user_name=username, password=password, driver_manager=manager, url=None)
@@ -156,7 +166,7 @@ def full_process(basin_code, username, paths):
         download.DownloadSetup()
 
     consecutive_failures = 0
-    failure_threshold = 5 # higher consecutive error threshold
+    failure_threshold = 3 # can raise or lower
 
     running=True
     #while True: #
