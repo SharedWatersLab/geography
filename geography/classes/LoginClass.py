@@ -65,7 +65,15 @@ class WebDriverManager:
         self.options = webdriver.ChromeOptions()
         self.options.page_load_strategy = 'normal'
         self.options.add_argument("--start-maximized")
-        self.options.add_argument("user-data-dir=/tmp/storedLoginInformation")       
+        self.options.add_argument("user-data-dir=/tmp/storedLoginInformation")  
+
+        # Add these lines to disable GCM/push notifications
+        self.options.add_argument("--disable-background-networking")
+        self.options.add_argument("--disable-background-timer-throttling")
+        self.options.add_argument("--disable-backgrounding-occluded-windows")
+        self.options.add_argument("--disable-push-messaging")
+        self.options.add_argument("--disable-notifications")
+
         prefs = {'download.prompt_for_download': False}
         self.options.add_experimental_option('prefs', prefs)     
     

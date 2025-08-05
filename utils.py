@@ -169,64 +169,73 @@ def full_process(basin_code, username, paths):
     failure_threshold = 3 # can raise or lower
 
     running=True
-    #while True: #
-    while running:
+    # Get initial ranges for progress bar
+    initial_ranges = download.get_ranges()
+    total_ranges = len(initial_ranges)
 
-        ranges_to_download = download.get_ranges()
-    
-        # Check if we're done
-        if not ranges_to_download:
-            print(f"All ranges for basin {basin_code} downloaded!")
-            logout_clearcookies(download)
-            driver.close()
-            running = False
-            break
+    # creae persisitent progress bar outside while loop
+    with tqdm(total=total_ranges, desc=f"Overall Progress on {basin_code}") as pbar:
+
+        while running:
+
+            ranges_to_download = download.get_ranges()
         
-        print(f"Attempting to download {len(ranges_to_download)} ranges")
-
-        if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
-            # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
-            print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
-            logout_clearcookies(download)
-            driver.close() # now it will just stop
-            #in_progress_download_folder = f"{download_folder}_failed_in_progress"
-            #os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
-            running=False
-
-        for i, r in enumerate(tqdm(ranges_to_download)):
-            try:
-                if i > 0: # if it's not the first loop
-                    reset(download, login, search) # reset, which includes login, search, and setup
-
-                # if i == len(ranges_to_download) - 1:  # if it's the last loop
-                #     print("Re-checking ranges before final download...")
-                #     updated_ranges = download.get_ranges()
-                #     if updated_ranges and r != updated_ranges[-1]:
-                #         print(f"Last range updated from {r} to {updated_ranges[-1]}")
-                #         r = updated_ranges[-1]  # Use the updated last range
-                
-                download.check_clear_downloads(r)
-                download.download_dialog(r)
-                print(f"preparing to download range {r}")
-
-                download.wait_for_download()
-                download.move_file(r)
-
-                after = time.time()
-                elapsed = after - before
-
-                consecutive_failures = 0 # reset on success
-                print("Time elapsed since process began (minutes): ", elapsed/60)
-
-            except DownloadFailedException:
-                consecutive_failures += 1
-                print(f"Download failed for range {r} after {consecutive_failures} consecutive failure(s)")
+            # Check if we're done
+            if not ranges_to_download:
+                print(f"All ranges for basin {basin_code} downloaded!")
+                logout_clearcookies(download)
+                driver.close()
+                running = False
                 break
-                #continue
             
-            except Exception as e:
-                #print(f"Error occurred with range {r}: {e}")
-                continue  # Try next range
+            print(f"Attempting to download {len(ranges_to_download)} ranges")
+
+            if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
+                # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
+                print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
+                logout_clearcookies(download)
+                driver.close() # now it will just stop
+                #in_progress_download_folder = f"{download_folder}_failed_in_progress"
+                #os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
+                running=False
+
+            for i, r in enumerate(ranges_to_download):
+                try:
+                    if i > 0: # if it's not the first loop
+                        reset(download, login, search) # reset, which includes login, search, and setup
+
+                    # if i == len(ranges_to_download) - 1:  # if it's the last loop
+                    #     print("Re-checking ranges before final download...")
+                    #     updated_ranges = download.get_ranges()
+                    #     if updated_ranges and r != updated_ranges[-1]:
+                    #         print(f"Last range updated from {r} to {updated_ranges[-1]}")
+                    #         r = updated_ranges[-1]  # Use the updated last range
+                    
+                    download.check_clear_downloads(r)
+                    download.download_dialog(r)
+                    print(f"preparing to download range {r}")
+
+                    download.wait_for_download()
+                    download.move_file(r)
+
+                    after = time.time()
+                    elapsed = after - before
+
+                    consecutive_failures = 0 # reset on success
+                    print("Time elapsed since process began (minutes): ", elapsed/60)
+
+                    # Update progress bar
+                    pbar.update(1)
+
+                except DownloadFailedException:
+                    consecutive_failures += 1
+                    print(f"Download failed for range {r} after {consecutive_failures} consecutive failure(s)")
+                    break
+                    #continue
+                
+                except Exception as e:
+                    #print(f"Error occurred with range {r}: {e}")
+                    continue  # Try next range
         
             
     # finally:

@@ -475,6 +475,7 @@ class Download:
             if r == ranges[-1]:
                 start_num = r.split('-')[0]
                 if any(dr.split('-')[0] == start_num for dr in downloaded_ranges):
+                    #print(f"DEBUG: final range start number found, skipped")
                     continue
             not_downloaded_ranges.append(r)
         not_downloaded_ranges = sorted(not_downloaded_ranges, key=lambda x: int(x.split('-')[0]))
