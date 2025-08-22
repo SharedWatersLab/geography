@@ -64,6 +64,16 @@ class Search:
         element.send_keys(keys)
     
     def NexisHome(self):
+        try:
+            ignore_button = WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button#proceed-button.secondary-button.small-link"))
+            )
+            ignore_button.click()
+            print("Safety page, click to ignore")
+            time.sleep(3)
+        except TimeoutException:
+            pass
+
         self.nexis_home_substring = 'bisnexishome'
         if self.nexis_home_substring in self.driver.current_url:
             print('already on Nexis Uni home page')

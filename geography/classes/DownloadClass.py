@@ -113,8 +113,10 @@ class Download:
         self._click_from_xpath(actions_dropdown_xpath)
         time.sleep(5)
         moderate_button = "//button[contains(@class, 'action') and @data-action='changeduplicates' and @data-value='moderate']"
-        self._click_from_xpath(moderate_button)
-        print("group duplicate results by moderate similarity")
+        high_button = "//button[contains(@class, 'action') and @data-action='changeduplicates' and @data-value='high']"
+        duplicates_button = high_button # changed this August 2025
+        self._click_from_xpath(duplicates_button)
+        print("group duplicate results")
         time.sleep(10)
 
     def handle_popups(self, max_popups=5):
@@ -453,6 +455,7 @@ class Download:
         """Get ranges based on result count and download limit"""
         # get full count from site
         full_count = self.get_result_count() 
+        #print(f"DEBUG: get_result_count() returned: {full_count}")
         
         # hard-coding limit of 500 to it because that's the nexis uni limit for word full text
         download_limit = 500 
@@ -479,6 +482,7 @@ class Download:
                     continue
             not_downloaded_ranges.append(r)
         not_downloaded_ranges = sorted(not_downloaded_ranges, key=lambda x: int(x.split('-')[0]))
+        #print(f"DEBUG: Final not_downloaded_ranges: {not_downloaded_ranges}")
         return not_downloaded_ranges
     
     def check_for_download_restriction(self):
@@ -640,6 +644,7 @@ class Download:
 
         else:
             print(f"file containing range {r} was not downloaded")
+            raise DownloadFailedException
 
     def wait_for_box_sync(self, file_path, max_wait=30):
         """Wait for file to be fully synced to Box Drive"""

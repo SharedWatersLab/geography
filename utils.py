@@ -1,7 +1,7 @@
 from geography.classes.LoginClass import PasswordManager, WebDriverManager, Login
 from geography.classes.DownloadClass import Download, DownloadFailedException
 from geography.classes.SearchClass import Search
-from selenium.common.exceptions import SessionNotCreatedException
+from selenium.common.exceptions import SessionNotCreatedException, TimeoutException, NoSuchElementException
 
 import os
 import shutil
@@ -55,29 +55,6 @@ def reset(download, login, search):
     search.search_process(start_date, end_date)
     time.sleep(5)
     download.DownloadSetup()
-
-# def move_failed_downloads(download_folder, basin_code):
-#     if os.path.exists(download_folder) and os.listdir(download_folder):
-#         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-#         #give the new folder a name
-#         failed_folder = f"{basin_code}_failed_{timestamp}"
-        
-#         try:
-#             # rename download folder (to "move" its contents to failed folder)
-#             os.rename(download_folder, failed_folder)
-#             print(f"Moved failed downloads to: {failed_folder}")
-            
-#             # need to recreate an empty download_folder 
-#             os.makedirs(download_folder)
-
-#             # now move failed folder into the new empty download folder lol
-#             new_failed_folder_path = os.path.join(download_folder, failed_folder)
-#             os.rename(failed_folder, new_failed_folder_path)
-            
-#         except Exception as e:
-#             print(f"Error moving folder: {e}")
-#     else:
-#         print(f"Download folder {download_folder} doesn't exist or is empty, nothing to move")
 
 def full_process(basin_code, username, paths):
     """
@@ -154,10 +131,23 @@ def full_process(basin_code, username, paths):
     
 
     time.sleep(5)
-    download.DownloadSetup()
+    try:
+        download.DownloadSetup()
+    except (TimeoutException, NoSuchElementException):
+        check_count = download.get_result_count()
+        if check_count is None:
+            zero_txt = os.path.join(download_folder, 'noresults.txt')
+            if not os.path.exists(zero_txt):
+                os.makedirs(zero_txt)
+            print(f"Zero results to download for basin {basin_code}")
 
     # Main download process
     before = time.time()
+
+    if download.get_result_count is None:
+        logout_clearcookies(download)
+        driver.close()
+        return
 
     if download.get_result_count() > 150000 and not getattr(search, 'already_switched_to_riparian', False):
         search.switch_to_riparian()
@@ -172,6 +162,7 @@ def full_process(basin_code, username, paths):
     # Get initial ranges for progress bar
     initial_ranges = download.get_ranges()
     total_ranges = len(initial_ranges)
+    completed_ranges = set()
 
     # creae persisitent progress bar outside while loop
     with tqdm(total=total_ranges, desc=f"Overall Progress on {basin_code}") as pbar:
@@ -225,7 +216,12 @@ def full_process(basin_code, username, paths):
                     print("Time elapsed since process began (minutes): ", elapsed/60)
 
                     # Update progress bar
-                    pbar.update(1)
+                    if r not in completed_ranges:
+                        completed_ranges.add(r)
+                        if len(completed_ranges) <= total_ranges:
+                            pbar.update(1)
+                            if len(completed_ranges) == total_ranges:
+                                print("All original ranges completed!")
 
                 except DownloadFailedException:
                     consecutive_failures += 1
