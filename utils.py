@@ -37,7 +37,7 @@ def get_user(basin_code, uname):
     return paths, uname
 
 def logout_clearcookies(download):
-    sign_in_button = "//button[@id='SignInRegisterBisNexis']"
+    sign_in_button = "//button[@id='NexisUniMipNewSignIn']"
     try:
         download._click_from_xpath(sign_in_button)
         print("logging out")
@@ -181,14 +181,14 @@ def full_process(basin_code, username, paths):
             
             print(f"Attempting to download {len(ranges_to_download)} ranges")
 
-            if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
-                # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
-                print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
-                logout_clearcookies(download)
-                driver.close() # now it will just stop
-                #in_progress_download_folder = f"{download_folder}_failed_in_progress"
-                #os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
-                running=False
+            # if consecutive_failures == failure_threshold: # for now change what happens when it fails. do not switch search method.
+            #     # print(f"Too many consecutive failures ({consecutive_failures}), switching search method...")
+            #     print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
+            #     logout_clearcookies(download)
+            #     driver.close() # now it will just stop
+            #     #in_progress_download_folder = f"{download_folder}_failed_in_progress"
+            #     #os.rename(download_folder, in_progress_download_folder) # add a label to indicate downloads are not complete for this basin
+            #     running=False
 
             for i, r in enumerate(ranges_to_download):
                 try:
@@ -226,8 +226,17 @@ def full_process(basin_code, username, paths):
                 except DownloadFailedException:
                     consecutive_failures += 1
                     print(f"Download failed for range {r} after {consecutive_failures} consecutive failure(s)")
-                    break
-                    #continue
+                    #logout_clearcookies(download)
+                    
+                    # Check if we've hit the failure threshold
+                    if consecutive_failures >= failure_threshold:
+                        print(f"{basin_code} downloads failed {failure_threshold} times in a row, please try another basin")
+                        logout_clearcookies(download)  # You might already have done this above
+                        driver.close()
+                        running = False
+                        break
+
+                    #continue  # Try the next range
                 
                 except Exception as e:
                     #print(f"Error occurred with range {r}: {e}")
