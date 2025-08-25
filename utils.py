@@ -226,6 +226,7 @@ def full_process(basin_code, username, paths):
                 except DownloadFailedException:
                     consecutive_failures += 1
                     print(f"Download failed for range {r} after {consecutive_failures} consecutive failure(s)")
+                    reset(download, login, search)
                     #logout_clearcookies(download)
                     
                     # Check if we've hit the failure threshold
@@ -236,7 +237,7 @@ def full_process(basin_code, username, paths):
                         running = False
                         break
 
-                    #continue  # Try the next range
+                    continue  # Try the next range
                 
                 except Exception as e:
                     #print(f"Error occurred with range {r}: {e}")

@@ -74,6 +74,9 @@ class WebDriverManager:
         self.options.add_argument("--disable-push-messaging")
         self.options.add_argument("--disable-notifications")
 
+        self.options.add_argument("--disable-logging")
+        self.options.add_argument("--log-level=3")  # Only fatal errors
+
         prefs = {'download.prompt_for_download': False}
         self.options.add_experimental_option('prefs', prefs)     
     
