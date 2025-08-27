@@ -24,7 +24,8 @@ class Search:
 
         # this can manually be set to True if we want to try with narrower search terms/fewer results
         self.use_riparian = False # range count >500 will "flip this switch" to proceed with riparian country search
-        
+        self.riparian_txt = os.path.join(self.geography_folder, "data", "downloads", self.basin_code, "riparian_names_used.txt")
+
         # Load tracking sheet - note the path might need adjustment
         tracking_sheet = pd.read_excel(f'{self.geography_folder}geography/basins_searchterms_tracking.xlsx')
         
@@ -300,9 +301,9 @@ class Search:
         print("Switching to riparian search mode...")
         self.use_riparian = True
         # and then create a .txt file that's called 'riparian' and add it to the downloads/bcode folder, which we'll track in main sheet at completion
-        riparian_txt = os.path.join(self.geography_folder, "data", "downloads", self.basin_code, "riparian_names_used.txt")
-        if not os.path.exists(riparian_txt):
-            os.makedirs(riparian_txt)
+        #riparian_txt = os.path.join(self.geography_folder, "data", "downloads", self.basin_code, "riparian_names_used.txt")
+        if not os.path.exists(self.riparian_txt):
+            os.makedirs(self.riparian_txt)
     
     def search_process(self, start_date, end_date):
 

@@ -114,7 +114,7 @@ class Download:
         time.sleep(5)
         moderate_button = "//button[contains(@class, 'action') and @data-action='changeduplicates' and @data-value='moderate']"
         high_button = "//button[contains(@class, 'action') and @data-action='changeduplicates' and @data-value='high']"
-        duplicates_button = high_button # changed this August 2025
+        duplicates_button = moderate_button # changed this August 2025
         self._click_from_xpath(duplicates_button)
         print("group duplicate results")
         time.sleep(10)
