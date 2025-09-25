@@ -4,8 +4,7 @@
 - 
 - The remaining structure of this geography repository is as follows:
 - * data folder
-- - downloads folder - contains downloaded results for each basin code and subfolders for download type (excel/pdf)
-- - status folder - contains information the main script will use for each basin's download process
+- - downloads folder - contains downloaded results for each basin code
 - 
 - * geography subfolder
 - - app.py - this is the main file that will be run in terminal
@@ -20,3 +19,4 @@
 ### Installation and Running
 
 - * How to download [https://oregonstate.box.com/s/dzdijzw7glxo63niarajqg0adhw4ur7p ](https://tufts.app.box.com/file/1756597125525?s=ggbgtrhw9fdijxzob8n4p8kcfwvg0pu9)
+
