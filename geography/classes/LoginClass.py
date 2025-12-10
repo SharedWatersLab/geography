@@ -77,8 +77,14 @@ class WebDriverManager:
         self.options.add_argument("--disable-logging")
         self.options.add_argument("--log-level=3")  # Only fatal errors
 
+        # NEW: Disable bounce tracking protection
+        self.options.add_argument('--disable-blink-features=AutomationControlled')
+        self.options.add_argument('--disable-features=BounceTrackingMitigations')
+        self.options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        self.options.add_experimental_option('useAutomationExtension', False)
+
         prefs = {'download.prompt_for_download': False}
-        self.options.add_experimental_option('prefs', prefs)     
+        self.options.add_experimental_option('prefs', prefs)  
     
     def start_driver(self):
         if not self.driver:
