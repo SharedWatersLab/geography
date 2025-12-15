@@ -126,7 +126,8 @@ def full_process(basin_code, username, paths):
         download_folder_temp=download_folder_temp,
         finished=False,
         url=None,
-        timeout=20
+        short_timeout=5,
+        long_timeout=15
     )
     
 
