@@ -34,7 +34,8 @@ class DownloadFailedException(Exception):
 
 class Download:
 
-    def __init__(self, driver, basin_code, username, login, search, download_folder: str, download_folder_temp, finished, url=None, timeout=20):
+    def __init__(self, driver, basin_code, username, login, search, download_folder: str, 
+                 download_folder_temp, finished, url=None, short_timeout=5, long_timeout=15):
 
         self.driver = driver
         self.basin_code = basin_code
