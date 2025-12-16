@@ -45,6 +45,15 @@ class Search:
         self.box_3_keys = self.search_term
         self.box_4_keys = 'ocean* OR "bilge water" OR "flood of refugees" OR waterproof OR "water resistant" OR streaming OR streame*'
 
+        # Nexis Uni search string limit
+        self.NEXIS_SEARCH_LIMIT = 5000
+
+        # Calculate fixed overhead (boxes 1, 2, 4 + wrappers)
+        self.FIXED_OVERHEAD = self._calculate_fixed_overhead()
+
+        # Maximum length for basin-specific terms (box 3)
+        self.MAX_BASIN_TERMS_LENGTH = self.NEXIS_SEARCH_LIMIT - self.FIXED_OVERHEAD
+
     def _click_from_css(self, css_selector, timeout=None):
         """Click element using CSS selector with appropriate timeout."""
         timeout = timeout or self.short_timeout  # Use short timeout by default for clicks
@@ -78,6 +87,92 @@ class Search:
         element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath))) 
         self.driver.execute_script("arguments[0].scrollIntoView();", element)
         element.send_keys(keys)
+
+    def _calculate_fixed_overhead(self):
+        """Calculate the fixed character count from boxes 1, 2, 4 and hlead() wrappers."""
+        # hlead(box1) and hlead(box2) and hlead(box3) and not hlead(box4)
+        overhead = (
+            len('hlead(') * 4 +  # Four hlead( openings
+            len(')') * 4 +        # Four ) closings
+            len(' and ') * 3 +    # Three ' and ' connectors
+            len(' and not ')      # One ' and not ' connector
+        )
+        fixed_boxes = len(self.box_1_keys) + len(self.box_2_keys) + len(self.box_4_keys)
+        return overhead + fixed_boxes
+
+    def truncate_search_terms(self, terms_string, max_length=None, context=""):
+        """
+        Intelligently truncate search terms to fit within character limit.
+        
+        Args:
+            terms_string: The OR-separated search terms to truncate
+            max_length: Maximum allowed length (defaults to self.MAX_BASIN_TERMS_LENGTH)
+            context: Optional description for logging
+        
+        Returns:
+            str: Truncated terms string that ends with a complete term
+        """
+        if max_length is None:
+            max_length = self.MAX_BASIN_TERMS_LENGTH
+        
+        # If it already fits, return as-is
+        if len(terms_string) <= max_length:
+            return terms_string
+        
+        # Calculate how much we need to remove
+        excess_chars = len(terms_string) - max_length
+        
+        # Truncate to the limit
+        truncated = terms_string[:max_length]
+        
+        # Find the last complete OR term
+        last_or_pos = truncated.rfind(" OR ")
+        
+        if last_or_pos == -1:
+            # No OR found, just return what fits (shouldn't happen in practice)
+            print(f"Warning: No OR separator found in {context}")
+            return truncated
+        
+        # Truncate at the last complete term
+        final_string = terms_string[:last_or_pos]
+        
+        # Log the truncation
+        original_terms = terms_string.split(" OR ")
+        kept_terms = final_string.split(" OR ")
+        removed_count = len(original_terms) - len(kept_terms)
+        
+        print(f"{'='*60}")
+        print(f"TRUNCATED {context.upper()}")
+        print(f"{'='*60}")
+        print(f"Original length: {len(terms_string)} chars ({len(original_terms)} terms)")
+        print(f"Max allowed: {max_length} chars")
+        print(f"Final length: {len(final_string)} chars ({len(kept_terms)} terms)")
+        print(f"Removed: {removed_count} terms")
+        print(f"{'='*60}")
+        
+        return final_string
+
+    def check_search_string_length(self, search_string):
+        """
+        Check if the full search string exceeds Nexis Uni's limit.
+        
+        Args:
+            search_string: The complete search string to check
+            
+        Returns:
+            tuple: (is_valid, length, excess_chars)
+        """
+        length = len(search_string)
+        is_valid = length <= self.NEXIS_SEARCH_LIMIT
+        excess = max(0, length - self.NEXIS_SEARCH_LIMIT)
+        
+        if not is_valid:
+            print(f"WARNING: Search string exceeds Nexis limit!")
+            print(f"  Length: {length} chars")
+            print(f"  Limit: {self.NEXIS_SEARCH_LIMIT} chars")  
+            print(f"  Excess: {excess} chars")
+        
+        return is_valid, length, excess
     
     def NexisHome(self):
         """Navigate to Nexis Uni home page if needed."""
@@ -125,26 +220,80 @@ class Search:
         print(f"Initializing search for {self.basin_code}")
 
     def riparian_search(self):
+
         """Generate search string with riparian country terms."""
         riparian_country_terms = self.row['Riparian_country_term'].values[0]
-        box_5_keys = riparian_country_terms
-        string_with_country_names = 'hlead(' + self.box_1_keys + ') and hlead(' + self.box_2_keys + ') and hlead(' + self.box_3_keys + ') and hlead(' + box_5_keys + ') and not hlead(' + self.box_4_keys + ')'
-
-        if len(string_with_country_names) < 5000:
-            print("Search string is within limit")
-            return string_with_country_names
+        basin_terms = self.search_term
+        
+        # Build the full string with riparian terms
+        search_string_with_riparian = (
+            f'hlead({self.box_1_keys}) and '
+            f'hlead({self.box_2_keys}) and '
+            f'hlead({basin_terms}) and '
+            f'hlead({riparian_country_terms}) and not '
+            f'hlead({self.box_4_keys})'
+        )
+        
+        # Check if it fits
+        if len(search_string_with_riparian) <= self.NEXIS_SEARCH_LIMIT:
+            print("Search string with riparian terms is within limit")
+            return search_string_with_riparian
+        
+        # Need to truncate - calculate available space for basin terms
+        riparian_overhead = len(f'hlead({riparian_country_terms}) and ')
+        available_for_basin = self.MAX_BASIN_TERMS_LENGTH - riparian_overhead
+        
+        if available_for_basin < 100:  # Sanity check
+            print("WARNING: Riparian terms too long, not enough room for basin terms")
+            print(f"Riparian terms: {len(riparian_country_terms)} chars")
+            print(f"Space remaining: {available_for_basin} chars")
+            # Fall back to no riparian terms
+            available_for_basin = self.MAX_BASIN_TERMS_LENGTH
+            riparian_country_terms = ""
+        
+        # Truncate basin terms to fit
+        truncated_basin = self.truncate_search_terms(
+            basin_terms,
+            max_length=available_for_basin,
+            context=f"basin-specific terms for {self.basin_code} (with riparian)"
+        )
+        
+        # Build final string
+        if riparian_country_terms:
+            final_string = (
+                f'hlead({self.box_1_keys}) and '
+                f'hlead({self.box_2_keys}) and '
+                f'hlead({truncated_basin}) and '
+                f'hlead({riparian_country_terms}) and not '
+                f'hlead({self.box_4_keys})'
+            )
         else:
-            excess_chars = len(string_with_country_names) - 5000
-            remove_from_box3 = len(self.box_3_keys) - excess_chars
-            box3_truncated = self.box_3_keys[:remove_from_box3]
-            last_or_pos = box3_truncated.rfind(" OR ")
-            new_box_3_keys = self.box_3_keys[:last_or_pos]
-            truncated_riparian_string = 'hlead(' + self.box_1_keys + ') and hlead(' + self.box_2_keys + ') and hlead(' + new_box_3_keys + ') and hlead(' + box_5_keys + ') and not hlead(' + self.box_4_keys + ')'
-            return truncated_riparian_string
+            final_string = (
+                f'hlead({self.box_1_keys}) and '
+                f'hlead({self.box_2_keys}) and '
+                f'hlead({truncated_basin}) and not '
+                f'hlead({self.box_4_keys})'
+            )
+        
+        return final_string
 
     def default_search(self):
-        """Generate default search string without riparian terms."""
-        default_string = 'hlead(' + self.box_1_keys + ') and hlead(' + self.box_2_keys + ') and hlead(' + self.box_3_keys + ') and not hlead(' + self.box_4_keys + ')'
+        """Generate default search string, auto-truncating basin terms if needed."""
+        basin_terms = self.search_term
+        
+        # Auto-truncate if terms are too long
+        if len(basin_terms) > self.MAX_BASIN_TERMS_LENGTH:
+            basin_terms = self.truncate_search_terms(
+                basin_terms, 
+                context=f"basin-specific terms for {self.basin_code}"
+            )
+        
+        default_string = (
+            f'hlead({self.box_1_keys}) and '
+            f'hlead({self.box_2_keys}) and '
+            f'hlead({basin_terms}) and not '
+            f'hlead({self.box_4_keys})'
+        )
         return default_string
     
     def _search_box(self):
