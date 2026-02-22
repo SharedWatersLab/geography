@@ -23,6 +23,9 @@ import time
 import getpass
 from pathlib import Path
 
+import tempfile
+import uuid
+
 # this all just to get the paths correct for the imports
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..')))
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +68,10 @@ class WebDriverManager:
         self.options = webdriver.ChromeOptions()
         self.options.page_load_strategy = 'normal'
         self.options.add_argument("--start-maximized")
-        self.options.add_argument("user-data-dir=/tmp/storedLoginInformation")  
+        #self.options.add_argument("user-data-dir=/tmp/storedLoginInformation") 
+    
+        temp_dir = tempfile.mkdtemp(prefix=f"chrome_profile_{uuid.uuid4().hex[:8]}_")
+        self.options.add_argument(f"user-data-dir={temp_dir}") 
 
         # Add these lines to disable GCM/push notifications
         self.options.add_argument("--disable-background-networking")
